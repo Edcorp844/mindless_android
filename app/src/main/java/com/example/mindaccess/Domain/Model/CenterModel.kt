@@ -1,13 +1,31 @@
 package com.example.mindaccess.Domain.Model
 
-import java.util.Hashtable
+import com.google.gson.annotations.SerializedName
 
 data class CenterModel(
+    val id: Int,
     val name: String,
     val description: String?,
+    val category: CenterCategoryModel,
+    @SerializedName("cordinates")
     val location: GeoLocationCordModel,
-    val category: String,
-    val workingDays: String?,
-    val contact: Hashtable<String, String>?,
-    val services: List<String>?
+    val open: String?,
+    val contact: String?,
+    val services: List<String> = emptyList(),
+)
+
+data class CenterCategoryModel(
+    val id: Int,
+    val label: String,
+    val color: String,
+    val icon: CategoryIconModel
+)
+
+data class CategoryIconModel(
+    val displayName: String
+)
+
+data class GeoLocationCordModel(
+    val latitude: Double,
+    val longitude: Double
 )
