@@ -15,6 +15,7 @@ import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -92,7 +93,7 @@ fun MainScreen(
                 // Mobile Bottom Bar
                 if (!useNavigationRail) {
                     NavigationBar(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                        containerColor = Color.Transparent,
                     ) {
                         items.forEach { screen ->
                             val selected = currentDestination?.hierarchy?.any { it.route == screen.route } == true
@@ -114,11 +115,9 @@ fun MainScreen(
                         }
                     }
                 }
-            }
+            },
+            contentWindowInsets = WindowInsets(0, 0, 0, 0)
         ) { innerPadding ->
-            // FIX: We only handle the bottom padding here for the navigation bar.
-            // We do NOT consume the top insets so that child screens can handle 
-            // the status bar padding themselves using their own TopAppBars.
             Box(
                 modifier = Modifier
                     .fillMaxSize()

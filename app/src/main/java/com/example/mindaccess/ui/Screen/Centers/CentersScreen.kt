@@ -25,6 +25,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.mindaccess.Domain.Model.CenterModel
+import com.example.mindaccess.ui.Components.LoadingIndicator
 import com.example.mindaccess.ui.Screen.CenterDetails.CenterDetailsContent
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)

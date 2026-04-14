@@ -23,6 +23,7 @@ import com.example.mindaccess.Domain.Model.CategoryIconModel
 import com.example.mindaccess.Domain.Model.CenterCategoryModel
 import com.example.mindaccess.Domain.Model.CenterModel
 import com.example.mindaccess.Domain.Model.GeoLocationCordModel
+import com.example.mindaccess.ui.Components.LoadingIndicator
 import kotlin.random.Random
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
