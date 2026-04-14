@@ -1,5 +1,6 @@
 package com.example.mindaccess.ui.Screen.Main
 
+import android.annotation.SuppressLint
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
@@ -33,6 +34,7 @@ sealed class Screen(val route: String, val label: String, val icon: ImageVector)
     object Settings : Screen("settings", "Settings", Icons.Outlined.Settings)
 }
 
+@SuppressLint("ContextCastToActivity")
 @OptIn(ExperimentalMaterial3WindowSizeClassApi::class, ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun MainScreen(
@@ -129,11 +131,20 @@ fun MainScreen(
                     composable(Screen.Home.route) { HomeScreen() }
                     composable(Screen.Centers.route) {
                         CentersScreen(
-                            onCenterClick = onCenterClick,
-                            onSearchClick = onSearchClick
+                            onCenterClick = { centerName ->
+                                if (useNavigationRail) {
+                                    // In tablet mode, we might handle this differently, 
+                                    // but for now let's see if we can use the split view inside CentersScreen
+                                }
+                                onCenterClick(centerName)
+                            },
+                            onSearchClick = onSearchClick,
+                            isExpanded = useNavigationRail
                         )
                     }
-                    composable(Screen.Settings.route) { SettingsScreen() }
+                    composable(Screen.Settings.route) { 
+                        SettingsScreen(isExpanded = useNavigationRail) 
+                    }
                 }
             }
         }

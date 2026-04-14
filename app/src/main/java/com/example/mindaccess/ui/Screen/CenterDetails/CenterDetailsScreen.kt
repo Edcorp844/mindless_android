@@ -34,8 +34,6 @@ fun CenterDetailsScreen(
     val center by viewModel.center.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
-    val context = LocalContext.current
-
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(errorMessage) {
@@ -45,14 +43,34 @@ fun CenterDetailsScreen(
         }
     }
 
+    CenterDetailsContent(
+        center = center,
+        isLoading = isLoading,
+        snackbarHostState = snackbarHostState,
+        onBackClick = onBackClick,
+        isExpanded = false
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+fun CenterDetailsContent(
+    modifier: Modifier = Modifier,
+    center: CenterModel?,
+    isLoading: Boolean,
+    snackbarHostState: SnackbarHostState? = null,
+    onBackClick: (() -> Unit)? = null,
+    isExpanded: Boolean = false
+) {
+    val context = LocalContext.current
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
     Scaffold(
-        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
-        snackbarHost = { SnackbarHost(snackbarHostState) },
+        modifier = modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
+        snackbarHost = { snackbarHostState?.let { SnackbarHost(it) } },
         topBar = {
             LargeTopAppBar(
-                title = { 
+                title = {
                     Text(
                         text = center?.name ?: if (isLoading) "Loading..." else "Not Found",
                         style = MaterialTheme.typography.displaySmall,
@@ -60,20 +78,20 @@ fun CenterDetailsScreen(
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = onBackClick) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    if (onBackClick != null && !isExpanded) {
+                        IconButton(onClick = onBackClick) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        }
                     }
                 },
                 scrollBehavior = scrollBehavior,
-                windowInsets = WindowInsets.statusBars
+                windowInsets = if (isExpanded) WindowInsets(0, 0, 0, 0) else WindowInsets.statusBars
             )
         }
     ) { paddingValues ->
         if (isLoading) {
             Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues),
+                modifier = Modifier.padding(paddingValues).fillMaxSize(),
                 contentAlignment = Alignment.Center
             ) {
                 LoadingIndicator()
@@ -82,8 +100,8 @@ fun CenterDetailsScreen(
             center?.let { data ->
                 Column(
                     modifier = Modifier
-                        .fillMaxSize()
                         .padding(paddingValues)
+                        .fillMaxSize()
                         .verticalScroll(rememberScrollState())
                         .padding(16.dp)
                 ) {
@@ -175,9 +193,7 @@ fun CenterDetailsScreen(
                 }
             } ?: run {
                 Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(paddingValues),
+                    modifier = Modifier.padding(paddingValues).fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(text = "Center not found", style = MaterialTheme.typography.titleLarge)
@@ -186,6 +202,7 @@ fun CenterDetailsScreen(
         }
     }
 }
+
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Preview(showBackground = true)

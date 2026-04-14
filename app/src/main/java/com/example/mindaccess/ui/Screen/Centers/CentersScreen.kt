@@ -25,12 +25,14 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.mindaccess.Domain.Model.CenterModel
+import com.example.mindaccess.ui.Screen.CenterDetails.CenterDetailsContent
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun CentersScreen(
     onCenterClick: (String) -> Unit,
     onSearchClick: () -> Unit = {},
+    isExpanded: Boolean = false,
     viewModel: CentersViewModel = hiltViewModel()
 ) {
     val centers by viewModel.centers.collectAsState()
@@ -41,6 +43,8 @@ fun CentersScreen(
     val selectedCategory by viewModel.selectedCategory.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
 
+    var selectedCenterName by remember { mutableStateOf<String?>(null) }
+    
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(errorMessage) {
@@ -50,19 +54,58 @@ fun CentersScreen(
         }
     }
 
-    CentersScreenContent(
-        centers = centers,
-        filteredCenters = filteredCenters,
-        isLoading = isLoading,
-        categories = categories,
-        selectedCategory = selectedCategory,
-        searchQuery = searchQuery,
-        snackbarHostState = snackbarHostState,
-        onCategorySelected = { viewModel.onCategorySelected(it) },
-        onSearchQueryChanged = { viewModel.onSearchQueryChanged(it) },
-        onCenterClick = onCenterClick,
-        onSearchClick = onSearchClick
-    )
+    if (isExpanded) {
+        Row(modifier = Modifier.fillMaxSize()) {
+            Box(modifier = Modifier.weight(1.4f)) {
+                CentersScreenContent(
+                    centers = centers,
+                    filteredCenters = filteredCenters,
+                    isLoading = isLoading,
+                    categories = categories,
+                    selectedCategory = selectedCategory,
+                    searchQuery = searchQuery,
+                    snackbarHostState = snackbarHostState,
+                    onCategorySelected = { viewModel.onCategorySelected(it) },
+                    onSearchQueryChanged = { viewModel.onSearchQueryChanged(it) },
+                    onCenterClick = { 
+                        selectedCenterName = it
+                    },
+                    onSearchClick = onSearchClick,
+                    selectedCenterName = selectedCenterName
+                )
+            }
+            VerticalDivider()
+            Box(modifier = Modifier.weight(1.5f)) {
+                if (selectedCenterName != null) {
+                    // We need a way to get the CenterModel from the name or ID.
+                    // For now, let's just pass the name to a detail component.
+                    val selectedCenter = centers.find { it.name == selectedCenterName }
+                    CenterDetailsContent(
+                        center = selectedCenter,
+                        isLoading = false // The list already loaded it
+                    )
+                } else {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Text("Select a center to view details", style = MaterialTheme.typography.bodyLarge)
+                    }
+                }
+            }
+        }
+    } else {
+        CentersScreenContent(
+            centers = centers,
+            filteredCenters = filteredCenters,
+            isLoading = isLoading,
+            categories = categories,
+            selectedCategory = selectedCategory,
+            searchQuery = searchQuery,
+            snackbarHostState = snackbarHostState,
+            onCategorySelected = { viewModel.onCategorySelected(it) },
+            onSearchQueryChanged = { viewModel.onSearchQueryChanged(it) },
+            onCenterClick = onCenterClick,
+            onSearchClick = onSearchClick
+        )
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
@@ -78,7 +121,8 @@ fun CentersScreenContent(
     onCategorySelected: (String) -> Unit,
     onSearchQueryChanged: (String) -> Unit,
     onCenterClick: (String) -> Unit,
-    onSearchClick: () -> Unit
+    onSearchClick: () -> Unit,
+    selectedCenterName: String? = null
 ) {
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     var isSearchActive by remember { mutableStateOf(false) }
@@ -133,7 +177,8 @@ fun CentersScreenContent(
                                 onClick = { 
                                     isSearchActive = false
                                     onCenterClick(center.name) 
-                                }
+                                },
+                                isSelected = center.name == selectedCenterName
                             )
                         }
                     }
@@ -203,7 +248,8 @@ fun CentersScreenContent(
                     items(filteredCenters) { center ->
                         ExpressiveCenterItem(
                             center = center,
-                            onClick = { onCenterClick(center.name) }
+                            onClick = { onCenterClick(center.name) },
+                            isSelected = center.name == selectedCenterName
                         )
                     }
                 }
@@ -215,12 +261,13 @@ fun CentersScreenContent(
 @Composable
 fun ExpressiveCenterItem(
     center: CenterModel,
-    onClick: () -> Unit = {}
+    onClick: () -> Unit = {},
+    isSelected: Boolean = false
 ) {
     Surface(
         onClick = onClick,
         shape = MaterialTheme.shapes.large,
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        color = if (isSelected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainerLow,
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
