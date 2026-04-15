@@ -79,14 +79,20 @@ dependencies {
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.material3)
-    implementation("androidx.compose.material3:material3-window-size-class")
+    implementation(libs.androidx.material3.window.size)
+    implementation(libs.androidx.material3.adaptive)
+    implementation(libs.androidx.material3.adaptive.layout)
+    implementation(libs.androidx.material3.adaptive.navigation)
     implementation(libs.androidx.compose.material.icons.extended)
-    implementation(libs.androidx.material3)
     implementation(libs.androidx.compose.foundation.layout)
 
     // Mapbox
     implementation(libs.mapbox.android)
     implementation(libs.mapbox.compose)
+    implementation(libs.mapbox.navigation)
+
+    // Location
+    implementation(libs.play.services.location)
 
     // Retrofit & Networking
     implementation(libs.retrofit)

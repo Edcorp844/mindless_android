@@ -127,7 +127,9 @@ fun MainScreen(
                     navController = navController,
                     startDestination = Screen.Home.route
                 ) {
-                    composable(Screen.Home.route) { HomeScreen() }
+                    composable(Screen.Home.route) { 
+                        HomeScreen(onCenterClick = onCenterClick) 
+                    }
                     composable(Screen.Centers.route) {
                         CentersScreen(
                             onCenterClick = { centerName ->

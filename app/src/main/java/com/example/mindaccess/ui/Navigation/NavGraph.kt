@@ -29,7 +29,12 @@ fun NavGraph(navController: NavHostController) {
             arguments = listOf(navArgument("centerName") { type = androidx.navigation.NavType.StringType })
         ) {
             CenterDetailsScreen(
-                onBackClick = { navController.popBackStack() }
+                onBackClick = { navController.popBackStack() },
+                onDirectionsClick = { center ->
+                    // Navigate back to main screen and let it handle directions
+                    // In a more robust app, you'd use a shared ViewModel or a specific nav result
+                    navController.popBackStack()
+                }
             )
         }
     }

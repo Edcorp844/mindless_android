@@ -30,6 +30,7 @@ import kotlin.random.Random
 @Composable
 fun CenterDetailsScreen(
     onBackClick: () -> Unit,
+    onDirectionsClick: (CenterModel) -> Unit = {},
     viewModel: CenterDetailsViewModel = hiltViewModel()
 ) {
     val center by viewModel.center.collectAsState()
@@ -49,7 +50,8 @@ fun CenterDetailsScreen(
         isLoading = isLoading,
         snackbarHostState = snackbarHostState,
         onBackClick = onBackClick,
-        isExpanded = false
+        isExpanded = false,
+        onDirectionsClick = onDirectionsClick
     )
 }
 
@@ -61,7 +63,8 @@ fun CenterDetailsContent(
     isLoading: Boolean,
     snackbarHostState: SnackbarHostState? = null,
     onBackClick: (() -> Unit)? = null,
-    isExpanded: Boolean = false
+    isExpanded: Boolean = false,
+    onDirectionsClick: (CenterModel) -> Unit = {}
 ) {
     val context = LocalContext.current
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
@@ -149,13 +152,7 @@ fun CenterDetailsContent(
                         }
 
                         Button(
-                            onClick = {
-                                val gmmIntentUri =
-                                    "geo:${data.location.latitude},${data.location.longitude}?q=${data.name}".toUri()
-                                val mapIntent = Intent(Intent.ACTION_VIEW, gmmIntentUri)
-                                mapIntent.setPackage("com.google.android.apps.maps")
-                                context.startActivity(mapIntent)
-                            },
+                            onClick = { data.let { onDirectionsClick(it) } },
                             shape = ButtonDefaults.filledTonalShape,
                         ) {
                             Icon(Icons.Default.Directions, contentDescription = null)
