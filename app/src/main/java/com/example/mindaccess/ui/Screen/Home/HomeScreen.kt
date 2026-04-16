@@ -71,13 +71,26 @@ import com.google.android.gms.location.FusedLocationProviderClient
 @Composable
 fun HomeScreen(
     onCenterClick: (String) -> Unit = {},
-    viewModel: HomeViewModel = hiltViewModel()
+    viewModel: HomeViewModel = hiltViewModel(),
+    pendingDirectionsCenterId: Int? = null,
+    onDirectionsHandled: () -> Unit = {}
 ) {
     val centers by viewModel.centers.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
 
     var selectedCenter by remember { mutableStateOf<CenterModel?>(null) }
+
+    // Handle pending directions from details screen
+    LaunchedEffect(pendingDirectionsCenterId, centers) {
+        if (pendingDirectionsCenterId != null && centers.isNotEmpty()) {
+            val center = centers.find { it.id == pendingDirectionsCenterId }
+            if (center != null) {
+                selectedCenter = center
+                onDirectionsHandled()
+            }
+        }
+    }
 
     val context = LocalContext.current
     val isDarkMode = isSystemInDarkTheme()

@@ -40,7 +40,9 @@ sealed class Screen(val route: String, val label: String, val icon: ImageVector)
 @Composable
 fun MainScreen(
     onCenterClick: (String) -> Unit,
-    onSearchClick: () -> Unit
+    onSearchClick: () -> Unit,
+    directionsCenterId: Int? = null,
+    onDirectionsHandled: () -> Unit = {}
 ) {
     val navController = rememberNavController()
     val items = listOf(
@@ -128,7 +130,11 @@ fun MainScreen(
                     startDestination = Screen.Home.route
                 ) {
                     composable(Screen.Home.route) { 
-                        HomeScreen(onCenterClick = onCenterClick) 
+                        HomeScreen(
+                            onCenterClick = onCenterClick,
+                            pendingDirectionsCenterId = directionsCenterId,
+                            onDirectionsHandled = onDirectionsHandled
+                        )
                     }
                     composable(Screen.Centers.route) {
                         CentersScreen(

@@ -1,6 +1,7 @@
 package com.example.mindaccess.ui.Navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -14,13 +15,21 @@ fun NavGraph(navController: NavHostController) {
         navController = navController,
         startDestination = "main"
     ) {
-        composable("main") {
+        composable("main") { backStackEntry ->
+            val directionsCenterId = backStackEntry.savedStateHandle.getStateFlow<Int?>("directions_center_id", null).collectAsState()
+            
             MainScreen(
                 onCenterClick = { centerName ->
+                    // Clear any pending directions when navigating to details
+                    backStackEntry.savedStateHandle["directions_center_id"] = null
                     navController.navigate("centerDetails/$centerName")
                 },
                 onSearchClick = {
                     // Handle global search click
+                },
+                directionsCenterId = directionsCenterId.value,
+                onDirectionsHandled = {
+                    backStackEntry.savedStateHandle["directions_center_id"] = null
                 }
             )
         }
@@ -31,6 +40,9 @@ fun NavGraph(navController: NavHostController) {
             CenterDetailsScreen(
                 onBackClick = { navController.popBackStack() },
                 onDirectionsClick = { center ->
+                    navController.previousBackStackEntry
+                        ?.savedStateHandle
+                        ?.set("directions_center_id", center.id)
                     navController.popBackStack()
                 }
             )

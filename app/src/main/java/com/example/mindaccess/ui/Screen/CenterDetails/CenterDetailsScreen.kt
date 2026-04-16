@@ -136,19 +136,23 @@ fun CenterDetailsContent(
 
                     Spacer(modifier = Modifier.height(24.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        data.contact?.let { contact ->
-                            Button(
-                                onClick = {
+                        val contact = data.contact
+                        val isContactAvailable = !contact.isNullOrBlank()
+                        
+                        Button(
+                            onClick = {
+                                if (isContactAvailable) {
                                     val intent = Intent(Intent.ACTION_DIAL, "tel:$contact".toUri())
                                     context.startActivity(intent)
-                                },
-                                colors = ButtonDefaults.filledTonalButtonColors(),
-                                shape = ButtonDefaults.filledTonalShape,
-                            ) {
-                                Icon(Icons.Default.Call, contentDescription = null)
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text("Call")
-                            }
+                                }
+                            },
+                            enabled = isContactAvailable,
+                            colors = ButtonDefaults.filledTonalButtonColors(),
+                            shape = ButtonDefaults.filledTonalShape,
+                        ) {
+                            Icon(Icons.Default.Call, contentDescription = null)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Call")
                         }
 
                         Button(
