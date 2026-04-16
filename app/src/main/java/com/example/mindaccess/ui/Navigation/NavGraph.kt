@@ -31,8 +31,6 @@ fun NavGraph(navController: NavHostController) {
             CenterDetailsScreen(
                 onBackClick = { navController.popBackStack() },
                 onDirectionsClick = { center ->
-                    // Navigate back to main screen and let it handle directions
-                    // In a more robust app, you'd use a shared ViewModel or a specific nav result
                     navController.popBackStack()
                 }
             )
