@@ -36,6 +36,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.window.core.layout.WindowWidthSizeClass
 import com.example.mindaccess.Domain.Model.CenterModel
 import com.example.mindaccess.ui.Components.LoadingIndicator
+import com.example.mindaccess.ui.Components.LoadingIndicatorType
 import com.example.mindaccess.ui.Screen.CenterDetails.CenterDetailsContent
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
@@ -52,6 +53,8 @@ import com.mapbox.maps.extension.compose.annotation.generated.PointAnnotationSta
 import com.mapbox.maps.extension.compose.style.MapStyle
 import com.mapbox.maps.plugin.LocationPuck2D
 import com.mapbox.maps.plugin.locationcomponent.location
+import com.mapbox.maps.plugin.viewport.data.FollowPuckViewportStateOptions
+import com.mapbox.maps.plugin.viewport.viewport
 import com.mapbox.navigation.base.options.NavigationOptions
 import com.mapbox.navigation.core.MapboxNavigation
 import com.mapbox.navigation.core.lifecycle.MapboxNavigationApp
@@ -65,7 +68,8 @@ import com.mapbox.maps.extension.compose.annotation.generated.PolylineAnnotation
 import com.mapbox.maps.extension.compose.annotation.generated.PolylineAnnotationState
 import com.mapbox.navigation.base.extensions.applyDefaultNavigationOptions
 import com.mapbox.navigation.base.extensions.applyLanguageAndVoiceUnitOptions
-import com.google.android.gms.location.FusedLocationProviderClient
+import com.google.android.gms.tasks.Task
+import android.location.Location
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -73,26 +77,21 @@ fun HomeScreen(
     onCenterClick: (String) -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel(),
     pendingDirectionsCenterId: Int? = null,
-    onDirectionsHandled: () -> Unit = {}
+    onDirectionsHandled: () -> Unit = {},
+    isCalculatingRoute: Boolean = false,
+    onCalculatingRouteChange: (Boolean) -> Unit = {}
 ) {
     val centers by viewModel.centers.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
 
     var selectedCenter by remember { mutableStateOf<CenterModel?>(null) }
-
-    // Handle pending directions from details screen
-    LaunchedEffect(pendingDirectionsCenterId, centers) {
-        if (pendingDirectionsCenterId != null && centers.isNotEmpty()) {
-            val center = centers.find { it.id == pendingDirectionsCenterId }
-            if (center != null) {
-                selectedCenter = center
-                onDirectionsHandled()
-            }
-        }
-    }
+    var isNavigating by remember { mutableStateOf(false) }
 
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val fusedLocationClient = remember { LocationServices.getFusedLocationProviderClient(context) }
+    
     val isDarkMode = isSystemInDarkTheme()
     val mapStyle = if (isDarkMode) Style.DARK else Style.MAPBOX_STREETS
     
@@ -100,6 +99,16 @@ fun HomeScreen(
     val isExpanded = windowSizeClass.windowWidthSizeClass == WindowWidthSizeClass.EXPANDED
 
     var navigationRoutes by remember { mutableStateOf<List<NavigationRoute>>(emptyList()) }
+    
+    val mapViewportState = rememberMapViewportState {
+        setCameraOptions {
+            center(Point.fromLngLat(32.5825, 0.3476)) // Default to Kampala
+            zoom(11.0)
+            pitch(0.0)
+            bearing(0.0)
+        }
+    }
+
     val mapboxNavigation = remember {
         if (!MapboxNavigationApp.isSetup()) {
             MapboxNavigationApp.setup(
@@ -123,13 +132,102 @@ fun HomeScreen(
         }
     }
 
-    val fusedLocationClient = remember { LocationServices.getFusedLocationProviderClient(context) }
-    val mapViewportState = rememberMapViewportState {
-        setCameraOptions {
-            center(Point.fromLngLat(32.5825, 0.3476)) // Default to Kampala
-            zoom(11.0)
-            pitch(0.0)
-            bearing(0.0)
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    // Function to request routes
+    val requestRoute = remember(mapboxNavigation, fusedLocationClient, snackbarHostState) {
+        { center: CenterModel, startImmediately: Boolean ->
+            onCalculatingRouteChange(true)
+            val destination = Point.fromLngLat(center.coordinates.longitude, center.coordinates.latitude)
+            
+            val requestMapboxRoute = { origin: Point ->
+                mapboxNavigation?.requestRoutes(
+                    RouteOptions.builder()
+                        .applyDefaultNavigationOptions()
+                        .applyLanguageAndVoiceUnitOptions(context)
+                        .coordinatesList(listOf(origin, destination))
+                        .alternatives(false)
+                        .build(),
+                    object : NavigationRouterCallback {
+                        override fun onRoutesReady(
+                            routes: List<NavigationRoute>,
+                            routerOrigin: String
+                        ) {
+                            onCalculatingRouteChange(false)
+                            mapboxNavigation?.setNavigationRoutes(routes)
+                            
+                            if (startImmediately) {
+                                isNavigating = true
+                            } else {
+                                routes.firstOrNull()?.directionsRoute?.geometry()?.let { geometry ->
+                                    val points = LineString.fromPolyline(geometry, 6).coordinates()
+                                    if (points.isNotEmpty()) {
+                                        scope.launch {
+                                            val cameraOptions = mapViewportState.cameraForCoordinates(
+                                                points,
+                                                CameraOptions.Builder().build(),
+                                                EdgeInsets(100.0, 100.0, 100.0, 100.0),
+                                                null,
+                                                null
+                                            )
+                                            mapViewportState.flyTo(cameraOptions)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        override fun onFailure(reasons: List<RouterFailure>, routeOptions: RouteOptions) {
+                            onCalculatingRouteChange(false)
+                            scope.launch { snackbarHostState.showSnackbar("Failed to find route") }
+                        }
+                        override fun onCanceled(routeOptions: RouteOptions, routerOrigin: String) {
+                            onCalculatingRouteChange(false)
+                        }
+                    }
+                )
+            }
+
+            try {
+                fusedLocationClient.lastLocation.addOnSuccessListener { lastLocation ->
+                    if (lastLocation != null) {
+                        requestMapboxRoute(Point.fromLngLat(lastLocation.longitude, lastLocation.latitude))
+                    } else {
+                        fusedLocationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null)
+                            .addOnSuccessListener { currentLocation ->
+                                if (currentLocation != null) {
+                                    requestMapboxRoute(Point.fromLngLat(currentLocation.longitude, currentLocation.latitude))
+                                } else {
+                                    onCalculatingRouteChange(false)
+                                    scope.launch { 
+                                        snackbarHostState.showSnackbar("Location unavailable. Please set location in emulator.") 
+                                    }
+                                }
+                            }
+                            .addOnFailureListener {
+                                onCalculatingRouteChange(false)
+                                scope.launch { snackbarHostState.showSnackbar("Failed to get current location") }
+                            }
+                    }
+                }.addOnFailureListener {
+                    onCalculatingRouteChange(false)
+                    scope.launch { snackbarHostState.showSnackbar("Location permission or service error") }
+                }
+            } catch (e: SecurityException) {
+                onCalculatingRouteChange(false)
+            }
+        }
+    }
+
+    // Handle pending directions from details screen
+    LaunchedEffect(pendingDirectionsCenterId, centers) {
+        if (pendingDirectionsCenterId != null && centers.isNotEmpty()) {
+            val center = centers.find { it.id == pendingDirectionsCenterId }
+            if (center != null) {
+                selectedCenter = center
+                onDirectionsHandled()
+                // Automatically trigger directions and start navigation
+                requestRoute(center, true)
+            }
         }
     }
 
@@ -186,9 +284,6 @@ fun HomeScreen(
         }
     }
 
-    val snackbarHostState = remember { SnackbarHostState() }
-    val scope = rememberCoroutineScope()
-
     LaunchedEffect(errorMessage) {
         errorMessage?.let {
             snackbarHostState.showSnackbar(it)
@@ -217,11 +312,29 @@ fun HomeScreen(
                     mapViewportState = mapViewportState,
                     style = { MapStyle(mapStyle) }
                 ) {
-                    MapEffect(Unit) { mapView ->
+                    MapEffect(isNavigating) { mapView ->
                         mapView.location.updateSettings {
                             enabled = true
                             locationPuck = LocationPuck2D()
                             pulsingEnabled = true
+                        }
+                        
+                        if (isNavigating) {
+                            mapboxNavigation?.startTripSession()
+                            mapView.viewport.transitionTo(
+                                mapView.viewport.makeFollowPuckViewportState(
+                                    FollowPuckViewportStateOptions.Builder()
+                                        .pitch(45.0)
+                                        .zoom(17.0)
+                                        .build()
+                                )
+                            )
+                        } else {
+                            mapboxNavigation?.stopTripSession()
+                            mapView.viewport.idle()
+                            mapViewportState.setCameraOptions {
+                                pitch(0.0)
+                            }
                         }
                     }
 
@@ -260,10 +373,10 @@ fun HomeScreen(
                                     }
                                 }
                             }
-                            val iconVector = getCategoryIcon(center.category.icon.displayName)
+                            val iconVector = getCategoryIcon(center.category.icon?.displayName ?: "")
                             val painter = rememberVectorPainter(iconVector)
                             val iconImage = rememberIconImage(
-                                key = center.category.icon.displayName + center.category.color,
+                                key = (center.category.icon?.displayName ?: "") + center.category.color,
                                 painter = object : Painter() {
                                     override val intrinsicSize: Size = painter.intrinsicSize
                                     override fun DrawScope.onDraw() {
@@ -275,7 +388,7 @@ fun HomeScreen(
                             )
 
                             PointAnnotation(
-                                point = Point.fromLngLat(center.location.longitude, center.location.latitude),
+                                point = Point.fromLngLat(center.coordinates.longitude, center.coordinates.latitude),
                                 pointAnnotationState = remember(center.id) {
                                     PointAnnotationState()
                                 }.apply {
@@ -298,14 +411,58 @@ fun HomeScreen(
                     }
                 }
 
-                if (isLoading) {
+                if (isLoading || isCalculatingRoute) {
                     LoadingIndicator(
-                        modifier = Modifier.align(Alignment.Center)
+                        modifier = Modifier.align(Alignment.Center),
+                        type = LoadingIndicatorType.SHAPES
                     )
                 }
 
+                if (isNavigating) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopCenter)
+                            .padding(top = 64.dp, start = 16.dp, end = 16.dp)
+                    ) {
+                        Surface(
+                            shape = RoundedCornerShape(16.dp),
+                            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
+                            tonalElevation = 4.dp,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(16.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = "Navigating to ${selectedCenter?.name}",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Text(
+                                        text = "Follow the blue line on the map",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.secondary
+                                    )
+                                }
+                                Button(
+                                    onClick = { isNavigating = false },
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = MaterialTheme.colorScheme.errorContainer,
+                                        contentColor = MaterialTheme.colorScheme.onErrorContainer
+                                    )
+                                ) {
+                                    Text("Stop")
+                                }
+                            }
+                        }
+                    }
+                }
+
             this@Row.AnimatedVisibility(
-                visible = selectedCenter != null && !isExpanded,
+                visible = selectedCenter != null && !isExpanded && !isNavigating,
                 enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
                 exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
                 modifier = Modifier
@@ -315,14 +472,19 @@ fun HomeScreen(
                     selectedCenter?.let { center ->
                         MapFloatingCard(
                             center = center,
-                            onClose = { selectedCenter = null },
+                            onClose = { 
+                                selectedCenter = null
+                                navigationRoutes = emptyList()
+                                mapboxNavigation?.setNavigationRoutes(emptyList())
+                            },
                             onDetailsClick = { 
                                 selectedCenter = null
                                 onCenterClick(center.name) 
                             },
-                            mapboxNavigation = mapboxNavigation,
-                            fusedLocationClient = fusedLocationClient,
-                            mapViewportState = mapViewportState
+                            onDirectionsClick = { requestRoute(center, false) },
+                            isCalculatingRoute = isCalculatingRoute,
+                            hasRoute = navigationRoutes.isNotEmpty(),
+                            onStartNavigation = { isNavigating = true }
                         )
                     }
                 }
@@ -339,51 +501,8 @@ fun HomeScreen(
                         isLoading = false,
                         onBackClick = { selectedCenter = null },
                         isExpanded = true,
-                        onDirectionsClick = { center ->
-                            val destination = Point.fromLngLat(center.location.longitude, center.location.latitude)
-                            try {
-                                fusedLocationClient.lastLocation.addOnSuccessListener { location ->
-                                    location?.let {
-                                        val origin = Point.fromLngLat(it.longitude, it.latitude)
-                                        mapboxNavigation?.requestRoutes(
-                                            RouteOptions.builder()
-                                                .applyDefaultNavigationOptions()
-                                                .applyLanguageAndVoiceUnitOptions(context)
-                                                .coordinatesList(listOf(origin, destination))
-                                                .alternatives(false)
-                                                .build(),
-                                            object : NavigationRouterCallback {
-                                                override fun onRoutesReady(
-                                                    routes: List<NavigationRoute>,
-                                                    routerOrigin: String
-                                                ) {
-                                                    mapboxNavigation?.setNavigationRoutes(routes)
-                                                    
-                                                    // Focus map on route
-                                                    routes.firstOrNull()?.directionsRoute?.geometry()?.let { geometry ->
-                                                        val points = LineString.fromPolyline(geometry, 6).coordinates()
-                                                        if (points.isNotEmpty()) {
-                                                            scope.launch {
-                                                                val cameraOptions = mapViewportState.cameraForCoordinates(
-                                                                    points,
-                                                                    CameraOptions.Builder().build(),
-                                                                    EdgeInsets(100.0, 100.0, 100.0, 100.0),
-                                                                    null,
-                                                                    null
-                                                                )
-                                                                mapViewportState.flyTo(cameraOptions)
-                                                            }
-                                                        }
-                                                    }
-                                                }
-                                                override fun onFailure(reasons: List<RouterFailure>, routeOptions: RouteOptions) {}
-                                                override fun onCanceled(routeOptions: RouteOptions, routerOrigin: String) {}
-                                            }
-                                        )
-                                    }
-                                }
-                            } catch (e: SecurityException) {}
-                        }
+                        onDirectionsClick = { center -> requestRoute(center, true) },
+                        isDirectionsLoading = isCalculatingRoute
                     )
                 }
             }
@@ -396,9 +515,10 @@ fun MapFloatingCard(
     center: CenterModel,
     onClose: () -> Unit,
     onDetailsClick: () -> Unit,
-    mapboxNavigation: MapboxNavigation?,
-    fusedLocationClient: FusedLocationProviderClient,
-    mapViewportState: com.mapbox.maps.extension.compose.animation.viewport.MapViewportState
+    onDirectionsClick: () -> Unit,
+    isCalculatingRoute: Boolean,
+    hasRoute: Boolean = false,
+    onStartNavigation: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -469,69 +589,39 @@ fun MapFloatingCard(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Button(
-                    onClick = {
-                        val destination = Point.fromLngLat(center.location.longitude, center.location.latitude)
-                        
-                        try {
-                            fusedLocationClient.lastLocation.addOnSuccessListener { location ->
-                                location?.let {
-                                    val origin = Point.fromLngLat(it.longitude, it.latitude)
-                                    
-                                    mapboxNavigation?.requestRoutes(
-                                        RouteOptions.builder()
-                                            .applyDefaultNavigationOptions()
-                                            .applyLanguageAndVoiceUnitOptions(context)
-                                            .coordinatesList(listOf(origin, destination))
-                                            .alternatives(false)
-                                            .build(),
-                                        object : NavigationRouterCallback {
-                                            override fun onRoutesReady(
-                                                routes: List<NavigationRoute>,
-                                                routerOrigin: String
-                                            ) {
-                                                mapboxNavigation?.setNavigationRoutes(routes)
-                                                
-                                                // Focus map on route
-                                                routes.firstOrNull()?.directionsRoute?.geometry()?.let { geometry ->
-                                                    val points = LineString.fromPolyline(geometry, 6).coordinates()
-                                                    if (points.isNotEmpty()) {
-                                                        scope.launch {
-                                                            val cameraOptions = mapViewportState.cameraForCoordinates(
-                                                                points,
-                                                                CameraOptions.Builder().build(),
-                                                                EdgeInsets(100.0, 100.0, 100.0, 100.0),
-                                                                null,
-                                                                null
-                                                            )
-                                                            mapViewportState.flyTo(cameraOptions)
-                                                        }
-                                                    }
-                                                }
-                                            }
-
-                                            override fun onFailure(
-                                                reasons: List<RouterFailure>,
-                                                routeOptions: RouteOptions
-                                            ) {}
-
-                                            override fun onCanceled(
-                                                routeOptions: RouteOptions,
-                                                routerOrigin: String
-                                            ) {}
-                                        }
-                                    )
-                                }
-                            }
-                        } catch (e: SecurityException) {}
-                    },
-                    modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(12.dp),
-                    contentPadding = PaddingValues(0.dp)
-                ) {
-                    Icon(Icons.Default.Directions, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Directions", fontSize = 14.sp)
+                if (hasRoute && !isCalculatingRoute) {
+                    Button(
+                        onClick = onStartNavigation,
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(12.dp),
+                        contentPadding = PaddingValues(0.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary
+                        )
+                    ) {
+                        Icon(Icons.Default.Navigation, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Start", fontSize = 14.sp)
+                    }
+                } else {
+                    Button(
+                        onClick = onDirectionsClick,
+                        enabled = !isCalculatingRoute,
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(12.dp),
+                        contentPadding = PaddingValues(0.dp)
+                    ) {
+                        if (isCalculatingRoute) {
+                            LoadingIndicator(
+                                modifier = Modifier.size(24.dp),
+                                type = LoadingIndicatorType.WAVY
+                            )
+                        } else {
+                            Icon(Icons.Default.Directions, contentDescription = null, modifier = Modifier.size(18.dp))
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Directions", fontSize = 14.sp)
+                    }
                 }
 
                 OutlinedButton(

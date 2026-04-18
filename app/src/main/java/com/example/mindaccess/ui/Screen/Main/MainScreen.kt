@@ -42,7 +42,9 @@ fun MainScreen(
     onCenterClick: (String) -> Unit,
     onSearchClick: () -> Unit,
     directionsCenterId: Int? = null,
-    onDirectionsHandled: () -> Unit = {}
+    onDirectionsHandled: () -> Unit = {},
+    isCalculatingRoute: Boolean = false,
+    onCalculatingRouteChange: (Boolean) -> Unit = {}
 ) {
     val navController = rememberNavController()
     val items = listOf(
@@ -133,7 +135,9 @@ fun MainScreen(
                         HomeScreen(
                             onCenterClick = onCenterClick,
                             pendingDirectionsCenterId = directionsCenterId,
-                            onDirectionsHandled = onDirectionsHandled
+                            onDirectionsHandled = onDirectionsHandled,
+                            isCalculatingRoute = isCalculatingRoute,
+                            onCalculatingRouteChange = onCalculatingRouteChange
                         )
                     }
                     composable(Screen.Centers.route) {

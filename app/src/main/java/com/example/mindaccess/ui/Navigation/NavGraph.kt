@@ -1,7 +1,6 @@
 package com.example.mindaccess.ui.Navigation
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.*
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -11,6 +10,8 @@ import com.example.mindaccess.ui.Screen.Main.MainScreen
 
 @Composable
 fun NavGraph(navController: NavHostController) {
+    var isCalculatingRoute by remember { mutableStateOf(false) }
+
     NavHost(
         navController = navController,
         startDestination = "main"
@@ -30,7 +31,9 @@ fun NavGraph(navController: NavHostController) {
                 directionsCenterId = directionsCenterId.value,
                 onDirectionsHandled = {
                     backStackEntry.savedStateHandle["directions_center_id"] = null
-                }
+                },
+                isCalculatingRoute = isCalculatingRoute,
+                onCalculatingRouteChange = { isCalculatingRoute = it }
             )
         }
         composable(
@@ -44,7 +47,8 @@ fun NavGraph(navController: NavHostController) {
                         ?.savedStateHandle
                         ?.set("directions_center_id", center.id)
                     navController.popBackStack()
-                }
+                },
+                isDirectionsLoading = isCalculatingRoute
             )
         }
     }
