@@ -6,9 +6,9 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.outlined.Email
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -159,7 +159,7 @@ fun CenterDetailsContent(
                 navigationIcon = {
                     if (onBackClick != null && !isExpanded) {
                         IconButton(onClick = onBackClick) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                            Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Back")
                         }
                     }
                 },
@@ -195,7 +195,7 @@ fun CenterDetailsContent(
                         Spacer(modifier = Modifier.height(24.dp))
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
-                                Icons.Default.Schedule,
+                                Icons.Outlined.Schedule,
                                 contentDescription = null,
                                 modifier = Modifier.size(20.dp),
                                 tint = MaterialTheme.colorScheme.secondary
@@ -227,7 +227,7 @@ fun CenterDetailsContent(
                             colors = ButtonDefaults.filledTonalButtonColors(),
                             shape = ButtonDefaults.filledTonalShape,
                         ) {
-                            Icon(Icons.Default.Call, contentDescription = null)
+                            Icon(Icons.Outlined.Call, contentDescription = null)
                             Spacer(modifier = Modifier.width(8.dp))
                             Text("Call")
                         }
@@ -245,7 +245,7 @@ fun CenterDetailsContent(
                             colors = ButtonDefaults.filledTonalButtonColors(),
                             shape = ButtonDefaults.filledTonalShape,
                         ) {
-                            Icon(Icons.Default.Email, contentDescription = null)
+                            Icon(Icons.Outlined.Email, contentDescription = null)
                             Spacer(modifier = Modifier.width(8.dp))
                             Text("Email")
                         }
@@ -265,7 +265,7 @@ fun CenterDetailsContent(
                                     type = LoadingIndicatorType.WAVY
                                 )
                             } else {
-                                Icon(Icons.Default.Directions, contentDescription = null)
+                                Icon(Icons.Outlined.Directions, contentDescription = null)
                             }
                             Spacer(modifier = Modifier.width(8.dp))
                             Text("Get Directions", softWrap = false)
@@ -287,7 +287,7 @@ fun CenterDetailsContent(
                                     modifier = Modifier.padding(vertical = 4.dp)
                                 ) {
                                     Icon(
-                                        Icons.Default.Phone,
+                                        Icons.Outlined.Phone,
                                         contentDescription = null,
                                         modifier = Modifier.size(20.dp),
                                         tint = MaterialTheme.colorScheme.secondary

@@ -5,12 +5,15 @@ import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.*
+import androidx.compose.material.icons.automirrored.outlined.*
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
 import androidx.compose.runtime.*
@@ -83,6 +86,8 @@ fun HomeScreen(
     onCalculatingRouteChange: (Boolean) -> Unit = {}
 ) {
     val centers by viewModel.centers.collectAsState()
+    val categories by viewModel.categories.collectAsState()
+    val selectedCategory by viewModel.selectedCategory.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
 
@@ -363,21 +368,9 @@ fun HomeScreen(
                     centers.forEach { center ->
                         key(center.id) {
                             val categoryColor = remember(center.category.color) {
-                                when (center.category.color) {
-                                    "systemPink" -> Color(0xFFFF2D55)
-                                    "systemRed" -> Color(0xFFFF3B30)
-                                    "systemBlue" -> Color(0xFF007AFF)
-                                    "systemGreen" -> Color(0xFF34C759)
-                                    "systemOrange" -> Color(0xFFFF9500)
-                                    "systemYellow" -> Color(0xFFFFCC00)
-                                    else -> try {
-                                        Color(android.graphics.Color.parseColor(center.category.color))
-                                    } catch (e: Exception) {
-                                        Color.Gray
-                                    }
-                                }
+                                parseCategoryColor(center.category.color)
                             }
-                            val iconVector = getCategoryIcon(center.category.icon?.displayName ?: "")
+                            val iconVector = getCategoryIcon(center.category.icon?.displayName ?: "", outlined = true)
                             val painter = rememberVectorPainter(iconVector)
                             val iconImage = rememberIconImage(
                                 key = (center.category.icon?.displayName ?: "") + center.category.color,
@@ -409,6 +402,107 @@ fun HomeScreen(
                                 onClick = {
                                     selectedCenter = center
                                     true
+                                }
+                            )
+                        }
+                    }
+                }
+
+                // Category Filter Split Button
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .padding(top = 64.dp)
+                ) {
+                    var expanded by remember { mutableStateOf(false) }
+                    
+                    val currentLabel = selectedCategory?.label ?: "All Categories"
+                    val currentIcon = selectedCategory?.let { getCategoryIcon(it.icon?.displayName ?: "", outlined = true) } ?: Icons.Outlined.Category
+                    val currentColor = selectedCategory?.let { parseCategoryColor(it.color) } ?: MaterialTheme.colorScheme.primary
+
+                    Surface(
+                        shape = RoundedCornerShape(24.dp),
+                        color = MaterialTheme.colorScheme.surface,
+                        tonalElevation = 3.dp,
+                        shadowElevation = 2.dp,
+                        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.height(48.dp)
+                        ) {
+                            // Leading Button part
+                            Row(
+                                modifier = Modifier
+                                    .clickable { expanded = !expanded }
+                                    .padding(horizontal = 16.dp)
+                                    .fillMaxHeight(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = currentIcon,
+                                    contentDescription = null,
+                                    tint = currentColor,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(Modifier.width(8.dp))
+                                Text(
+                                    text = currentLabel,
+                                    style = MaterialTheme.typography.labelLarge
+                                )
+                            }
+                            
+                            // Divider
+                            VerticalDivider(
+                                modifier = Modifier.padding(vertical = 12.dp),
+                                thickness = 1.dp,
+                                color = MaterialTheme.colorScheme.outlineVariant
+                            )
+                            
+                            // Trailing Button part (Arrow)
+                            Box(
+                                modifier = Modifier
+                                    .clickable { expanded = !expanded }
+                                    .padding(horizontal = 8.dp)
+                                    .fillMaxHeight(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = if (expanded) Icons.Outlined.KeyboardArrowUp else Icons.Outlined.KeyboardArrowDown,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+                    }
+
+                    DropdownMenu(
+                        expanded = expanded,
+                        onDismissRequest = { expanded = false }
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("All Categories") },
+                            onClick = {
+                                viewModel.selectCategory(null)
+                                expanded = false
+                            },
+                            leadingIcon = {
+                                Icon(Icons.Outlined.Category, contentDescription = null)
+                            }
+                        )
+                        categories.forEach { category ->
+                            DropdownMenuItem(
+                                text = { Text(category.label) },
+                                onClick = {
+                                    viewModel.selectCategory(category)
+                                    expanded = false
+                                },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = getCategoryIcon(category.icon?.displayName ?: "", outlined = true),
+                                        contentDescription = null,
+                                        tint = parseCategoryColor(category.color)
+                                    )
                                 }
                             )
                         }
@@ -567,7 +661,7 @@ fun MapFloatingCard(
                     modifier = Modifier.size(32.dp)
                 ) {
                     Icon(
-                        Icons.Default.Close,
+                        Icons.Outlined.Close,
                         contentDescription = "Close",
                         modifier = Modifier.size(20.dp),
                         tint = MaterialTheme.colorScheme.outline
@@ -603,7 +697,7 @@ fun MapFloatingCard(
                             containerColor = MaterialTheme.colorScheme.primary
                         )
                     ) {
-                        Icon(Icons.Default.Navigation, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Icon(Icons.Outlined.Navigation, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(8.dp))
                         Text("Start", fontSize = 14.sp)
                     }
@@ -621,7 +715,7 @@ fun MapFloatingCard(
                                 type = LoadingIndicatorType.WAVY
                             )
                         } else {
-                            Icon(Icons.Default.Directions, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Icon(Icons.Outlined.Directions, contentDescription = null, modifier = Modifier.size(18.dp))
                         }
                         Spacer(modifier = Modifier.width(8.dp))
                         Text("Directions", fontSize = 14.sp)
@@ -635,25 +729,57 @@ fun MapFloatingCard(
                     contentPadding = PaddingValues(0.dp)
                 ) {
                     Text("Details", fontSize = 14.sp)
-                    Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, modifier = Modifier.size(16.dp).padding(start = 4.dp))
+                    Icon(Icons.AutoMirrored.Outlined.ArrowForward, contentDescription = null, modifier = Modifier.size(16.dp).padding(start = 4.dp))
                 }
             }
         }
     }
 }
 
-private fun getCategoryIcon(displayName: String): ImageVector {
-    return when (displayName.lowercase()) {
-        "building2" -> Icons.Default.Business
-        "hospital" -> Icons.Default.LocalHospital
-        "sofa" -> Icons.Default.Chair
-        "health", "medical" -> Icons.Default.MedicalServices
-        "education", "school" -> Icons.Default.School
-        "social", "support" -> Icons.Default.Groups
-        "legal" -> Icons.Default.Gavel
-        "emergency" -> Icons.Default.Warning
-        "mental", "psychology" -> Icons.Default.Psychology
-        "community" -> Icons.Default.LocationCity
-        else -> Icons.Default.Place
+private fun parseCategoryColor(colorString: String): Color {
+    return when (colorString) {
+        "systemPink" -> Color(0xFFFF2D55)
+        "systemRed" -> Color(0xFFFF3B30)
+        "systemBlue" -> Color(0xFF007AFF)
+        "systemGreen" -> Color(0xFF34C759)
+        "systemOrange" -> Color(0xFFFF9500)
+        "systemYellow" -> Color(0xFFFFCC00)
+        else -> try {
+            Color(android.graphics.Color.parseColor(colorString))
+        } catch (e: Exception) {
+            Color.Gray
+        }
+    }
+}
+
+private fun getCategoryIcon(displayName: String, outlined: Boolean = false): ImageVector {
+    return if (outlined) {
+        when (displayName.lowercase()) {
+            "building2" -> Icons.Outlined.Business
+            "hospital" -> Icons.Outlined.LocalHospital
+            "sofa" -> Icons.Outlined.Chair
+            "health", "medical" -> Icons.Outlined.MedicalServices
+            "education", "school" -> Icons.Outlined.School
+            "social", "support" -> Icons.Outlined.Groups
+            "legal" -> Icons.Outlined.Gavel
+            "emergency" -> Icons.Outlined.Warning
+            "mental", "psychology" -> Icons.Outlined.Psychology
+            "community" -> Icons.Outlined.LocationCity
+            else -> Icons.Outlined.Place
+        }
+    } else {
+        when (displayName.lowercase()) {
+            "building2" -> Icons.Default.Business
+            "hospital" -> Icons.Default.LocalHospital
+            "sofa" -> Icons.Default.Chair
+            "health", "medical" -> Icons.Default.MedicalServices
+            "education", "school" -> Icons.Default.School
+            "social", "support" -> Icons.Default.Groups
+            "legal" -> Icons.Default.Gavel
+            "emergency" -> Icons.Default.Warning
+            "mental", "psychology" -> Icons.Default.Psychology
+            "community" -> Icons.Default.LocationCity
+            else -> Icons.Default.Place
+        }
     }
 }
