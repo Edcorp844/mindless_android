@@ -1,7 +1,9 @@
 package com.example.mindaccess.di
 
 import com.example.mindaccess.Data.Repository.CenterRepositoryImpl
+import com.example.mindaccess.Data.Repository.LegalRepositoryImpl
 import com.example.mindaccess.Domain.Repository.CenterRepository
+import com.example.mindaccess.Domain.Repository.LegalRepository
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
@@ -17,4 +19,10 @@ abstract class RepositoryModule {
     abstract fun bindCenterRepository(
         centerRepositoryImpl: CenterRepositoryImpl
     ): CenterRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindLegalRepository(
+        legalRepositoryImpl: LegalRepositoryImpl
+    ): LegalRepository
 }

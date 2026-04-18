@@ -68,6 +68,7 @@ import com.mapbox.maps.extension.compose.annotation.generated.PolylineAnnotation
 import com.mapbox.maps.extension.compose.annotation.generated.PolylineAnnotationState
 import com.mapbox.navigation.base.extensions.applyDefaultNavigationOptions
 import com.mapbox.navigation.base.extensions.applyLanguageAndVoiceUnitOptions
+import com.example.mindaccess.ui.Screen.Settings.SettingsViewModel
 import com.google.android.gms.tasks.Task
 import android.location.Location
 
@@ -84,6 +85,9 @@ fun HomeScreen(
     val centers by viewModel.centers.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
+
+    val settingsViewModel: SettingsViewModel = hiltViewModel()
+    val locationEnabled by settingsViewModel.locationEnabled.collectAsState()
 
     var selectedCenter by remember { mutableStateOf<CenterModel?>(null) }
     var isNavigating by remember { mutableStateOf(false) }
@@ -314,9 +318,9 @@ fun HomeScreen(
                 ) {
                     MapEffect(isNavigating) { mapView ->
                         mapView.location.updateSettings {
-                            enabled = true
+                            enabled = locationEnabled
                             locationPuck = LocationPuck2D()
-                            pulsingEnabled = true
+                            pulsingEnabled = locationEnabled
                         }
                         
                         if (isNavigating) {

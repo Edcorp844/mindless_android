@@ -154,7 +154,7 @@ fun MainScreen(
                         )
                     }
                     composable(Screen.Settings.route) { 
-                        SettingsScreen(isExpanded = useNavigationRail) 
+                        SettingsScreen(isExpanded = useNavigationRail)
                     }
                 }
             }
