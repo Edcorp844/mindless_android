@@ -559,6 +559,72 @@ fun HomeScreen(
                     }
                 }
 
+                // Map Controls (Zoom and Location) - Positioned at top-right
+                Column(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .statusBarsPadding()
+                        .padding(top = 16.dp, end = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        tonalElevation = 3.dp,
+                        shadowElevation = 4.dp,
+                        color = MaterialTheme.colorScheme.surface
+                    ) {
+                        Column {
+                            IconButton(
+                                onClick = {
+                                    val currentZoom = mapViewportState.cameraState?.zoom ?: 13.0
+                                    mapViewportState.flyTo(CameraOptions.Builder().zoom(currentZoom + 1.0).build())
+                                }
+                            ) {
+                                Icon(Icons.Default.Add, contentDescription = "Zoom In", tint = MaterialTheme.colorScheme.primary)
+                            }
+                            HorizontalDivider(
+                                modifier = Modifier.width(32.dp).align(Alignment.CenterHorizontally),
+                                thickness = 0.5.dp,
+                                color = MaterialTheme.colorScheme.outlineVariant
+                            )
+                            IconButton(
+                                onClick = {
+                                    val currentZoom = mapViewportState.cameraState?.zoom ?: 13.0
+                                    mapViewportState.flyTo(CameraOptions.Builder().zoom(currentZoom - 1.0).build())
+                                }
+                            ) {
+                                Icon(Icons.Default.Remove, contentDescription = "Zoom Out", tint = MaterialTheme.colorScheme.primary)
+                            }
+                        }
+                    }
+
+                    FloatingActionButton(
+                        onClick = {
+                            try {
+                                fusedLocationClient.lastLocation.addOnSuccessListener { location ->
+                                    location?.let {
+                                        mapViewportState.flyTo(
+                                            CameraOptions.Builder()
+                                                .center(Point.fromLngLat(it.longitude, it.latitude))
+                                                .zoom(15.0)
+                                                .build()
+                                        )
+                                    }
+                                }
+                            } catch (e: SecurityException) {
+                                // Handle permission error
+                            }
+                        },
+                        containerColor = MaterialTheme.colorScheme.surface,
+                        contentColor = MaterialTheme.colorScheme.primary,
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.size(48.dp),
+                        elevation = FloatingActionButtonDefaults.elevation(4.dp)
+                    ) {
+                        Icon(Icons.Default.MyLocation, contentDescription = "Current Location")
+                    }
+                }
+
             this@Row.AnimatedVisibility(
                 visible = selectedCenter != null && !isExpanded && !isNavigating,
                 enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
