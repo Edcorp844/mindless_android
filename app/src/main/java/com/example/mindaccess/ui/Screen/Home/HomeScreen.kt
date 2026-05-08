@@ -91,14 +91,12 @@ fun HomeScreen(
     val selectedCategory by viewModel.selectedCategory.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
-    val notifications by viewModel.notifications.collectAsState()
 
     val settingsViewModel: SettingsViewModel = hiltViewModel()
     val locationEnabled by settingsViewModel.locationEnabled.collectAsState()
 
     var selectedCenter by remember { mutableStateOf<CenterModel?>(null) }
     var isNavigating by remember { mutableStateOf(false) }
-    var showNotifications by remember { mutableStateOf(false) }
 
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -313,14 +311,6 @@ fun HomeScreen(
         }
     }
 
-    if (showNotifications) {
-        NotificationDialog(
-            notifications = notifications,
-            onDismiss = { showNotifications = false },
-            onMarkAsRead = { viewModel.markAsRead(it) },
-            onMarkAllAsRead = { viewModel.markAllAsRead() }
-        )
-    }
 
     Scaffold(
         snackbarHost = { 
@@ -602,26 +592,6 @@ fun HomeScreen(
                         .padding(top = 16.dp, end = 16.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    val unreadCount = notifications.count { !it.read }
-                    BadgedBox(
-                        badge = {
-                            if (unreadCount > 0) {
-                                Badge { Text(unreadCount.toString()) }
-                            }
-                        }
-                    ) {
-                        FloatingActionButton(
-                            onClick = { showNotifications = true },
-                            containerColor = MaterialTheme.colorScheme.surface,
-                            contentColor = MaterialTheme.colorScheme.primary,
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.size(48.dp),
-                            elevation = FloatingActionButtonDefaults.elevation(4.dp)
-                        ) {
-                            Icon(Icons.Default.Notifications, contentDescription = "Notifications")
-                        }
-                    }
-
                     Surface(
                         shape = RoundedCornerShape(12.dp),
                         tonalElevation = 3.dp,

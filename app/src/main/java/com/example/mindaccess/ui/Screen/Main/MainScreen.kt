@@ -19,6 +19,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
@@ -44,7 +45,8 @@ fun MainScreen(
     directionsCenterId: Int? = null,
     onDirectionsHandled: () -> Unit = {},
     isCalculatingRoute: Boolean = false,
-    onCalculatingRouteChange: (Boolean) -> Unit = {}
+    onCalculatingRouteChange: (Boolean) -> Unit = {},
+    settingsViewModel: com.example.mindaccess.ui.Screen.Settings.SettingsViewModel = hiltViewModel()
 ) {
     val navController = rememberNavController()
     val items = listOf(
@@ -52,6 +54,9 @@ fun MainScreen(
         Screen.Centers,
         Screen.Settings
     )
+
+    val notifications by settingsViewModel.notifications.collectAsState()
+    val unreadCount = notifications.count { !it.read }
 
     // Detect screen size for adaptive navigation
     val activity = LocalContext.current as android.app.Activity
@@ -83,7 +88,17 @@ fun MainScreen(
                                 restoreState = true
                             }
                         },
-                        icon = { Icon(screen.icon, contentDescription = screen.label) },
+                        icon = {
+                            if (screen == Screen.Settings && unreadCount > 0) {
+                                BadgedBox(
+                                    badge = { Badge { Text(unreadCount.toString()) } }
+                                ) {
+                                    Icon(screen.icon, contentDescription = screen.label)
+                                }
+                            } else {
+                                Icon(screen.icon, contentDescription = screen.label)
+                            }
+                        },
                         label = { Text(screen.label) },
                         alwaysShowLabel = true
                     )
@@ -113,7 +128,17 @@ fun MainScreen(
                                         restoreState = true
                                     }
                                 },
-                                icon = { Icon(screen.icon, contentDescription = screen.label) },
+                                icon = {
+                            if (screen == Screen.Settings && unreadCount > 0) {
+                                BadgedBox(
+                                    badge = { Badge { Text(unreadCount.toString()) } }
+                                ) {
+                                    Icon(screen.icon, contentDescription = screen.label)
+                                }
+                            } else {
+                                Icon(screen.icon, contentDescription = screen.label)
+                            }
+                        },
                                 label = { Text(screen.label) },
                                 alwaysShowLabel = true
                             )

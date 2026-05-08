@@ -59,6 +59,7 @@ fun SettingsScreen(
     val locationEnabled by viewModel.locationEnabled.collectAsState()
     val dataUsage by viewModel.dataUsage.collectAsState()
     val currentUser by viewModel.userState.collectAsState()
+    val notifications by viewModel.notifications.collectAsState()
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
     
@@ -73,6 +74,7 @@ fun SettingsScreen(
                     onLocationEnabledChange = { viewModel.setLocationEnabled(it) },
                     dataUsage = dataUsage,
                     currentUser = currentUser,
+                    notifications = notifications,
                     onUpdateUser = { viewModel.updateCurrentUser() },
                     onItemClick = { selectedItem = it },
                     selectedItem = selectedItem
@@ -86,6 +88,7 @@ fun SettingsScreen(
                         title = selectedItem!!,
                         viewModel = viewModel,
                         currentUser = currentUser,
+                        notifications = notifications,
                         onNavigate = { selectedItem = it },
                         onBack = { selectedItem = null }
                     )
@@ -110,6 +113,7 @@ fun SettingsScreen(
                     onLocationEnabledChange = { viewModel.setLocationEnabled(it) },
                     dataUsage = dataUsage,
                     currentUser = currentUser,
+                    notifications = notifications,
                     onUpdateUser = { viewModel.updateCurrentUser() },
                     onItemClick = { selectedItem = it }
                 )
@@ -121,6 +125,7 @@ fun SettingsScreen(
                     title = targetItem,
                     viewModel = viewModel,
                     currentUser = currentUser,
+                    notifications = notifications,
                     onNavigate = { selectedItem = it },
                     onBack = { selectedItem = null }
                 )
@@ -136,6 +141,7 @@ fun SettingsListContent(
     onLocationEnabledChange: (Boolean) -> Unit,
     dataUsage: String,
     currentUser: FirebaseUser?,
+    notifications: List<AppNotification>,
     onUpdateUser: () -> Unit,
     onItemClick: (String) -> Unit,
     selectedItem: String? = null
@@ -193,6 +199,31 @@ fun SettingsListContent(
                     onItemClick("Account")
                 }
             )
+
+            if (currentUser != null && !currentUser.isAnonymous) {
+                val unreadCount = notifications.count { !it.read }
+                SettingsGroup(title = "") {
+                    ListItem(
+                        headlineContent = { Text("Notifications") },
+                        leadingContent = {
+                            BadgedBox(
+                                badge = {
+                                    if (unreadCount > 0) {
+                                        Badge { Text(unreadCount.toString()) }
+                                    }
+                                }
+                            ) {
+                                Icon(Icons.Outlined.Notifications, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                            }
+                        },
+                        trailingContent = { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null) },
+                        colors = ListItemDefaults.colors(
+                            containerColor = if (selectedItem == "Notifications") MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainer
+                        ),
+                        modifier = Modifier.clickable { onItemClick("Notifications") }
+                    )
+                }
+            }
 
             // --- SECTION: PERMISSIONS AND USAGE ---
             SettingsGroup(title = "Permissions And Usage") {
@@ -305,6 +336,7 @@ fun SettingDetail(
     title: String,
     viewModel: SettingsViewModel,
     currentUser: FirebaseUser?,
+    notifications: List<AppNotification>,
     onBack: () -> Unit,
     onNavigate: (String) -> Unit
 ) {
@@ -405,6 +437,14 @@ fun SettingDetail(
                             }
                         }
                     }
+                }
+                "Notifications" -> {
+                    com.example.mindaccess.ui.Screen.Home.NotificationDialog(
+                        notifications = notifications,
+                        onDismiss = onBack,
+                        onMarkAsRead = { viewModel.markAsRead(it) },
+                        onMarkAllAsRead = { viewModel.markAllAsRead() }
+                    )
                 }
                 "Usage Tracking" -> {
                     Column(modifier = Modifier.padding(16.dp)) {

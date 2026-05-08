@@ -30,14 +30,19 @@ sealed class LegalState<out T> {
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val legalRepository: LegalRepository
+    private val legalRepository: LegalRepository,
+    private val userRepository: com.example.mindaccess.Domain.Repository.UserRepository
 ) : ViewModel() {
 
     private val firebaseAuth = FirebaseAuth.getInstance()
-    
-    val currentUser = MutableStateFlow(firebaseAuth.currentUser).asStateFlow()
-
     private val sharedPrefs = context.getSharedPreferences("settings_prefs", Context.MODE_PRIVATE)
+
+    // Properties initialized before init block
+    private val _currentUser = MutableStateFlow(firebaseAuth.currentUser)
+    val userState: StateFlow<FirebaseUser?> = _currentUser.asStateFlow()
+
+    private val _notifications = MutableStateFlow<List<AppNotification>>(emptyList())
+    val notifications: StateFlow<List<AppNotification>> = _notifications.asStateFlow()
 
     private val _locationEnabled = MutableStateFlow(sharedPrefs.getBoolean("location_enabled", true))
     val locationEnabled = _locationEnabled.asStateFlow()
@@ -58,14 +63,46 @@ class SettingsViewModel @Inject constructor(
     val faqState = _faqState.asStateFlow()
 
     init {
+        // Ensure all properties are initialized before starting observers
+        observeNotifications()
         updateDataUsage()
         fetchLegalData()
-        // Periodically update usage
+
         viewModelScope.launch {
             while (true) {
                 delay(5000)
                 updateDataUsage()
             }
+        }
+    }
+
+    private fun observeNotifications() {
+        viewModelScope.launch {
+            // Using _currentUser directly as an extra safety measure against init order issues
+            _currentUser.collect { user ->
+                val uid = user?.uid
+                if (uid != null) {
+                    userRepository.subscribeToNotifications(uid).collect {
+                        _notifications.value = it
+                    }
+                } else {
+                    _notifications.value = emptyList()
+                }
+            }
+        }
+    }
+
+    fun markAsRead(notification: AppNotification) {
+        val uid = firebaseAuth.currentUser?.uid ?: return
+        viewModelScope.launch {
+            userRepository.markNotificationRead(uid, notification)
+        }
+    }
+
+    fun markAllAsRead() {
+        val uid = firebaseAuth.currentUser?.uid ?: return
+        viewModelScope.launch {
+            userRepository.markAllNotificationsRead(uid)
         }
     }
 
@@ -135,8 +172,6 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    private val _currentUser = MutableStateFlow(firebaseAuth.currentUser)
-    val userState: StateFlow<FirebaseUser?> = _currentUser.asStateFlow()
 
     fun signOut() {
         firebaseAuth.signOut()
