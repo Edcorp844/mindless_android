@@ -39,6 +39,22 @@ class AuthViewModel @Inject constructor(
         _error.value = message
     }
 
+    private fun handleAuthError(exception: Exception?) {
+        _isLoading.value = false
+        val message = exception?.message ?: ""
+        _error.value = when {
+            exception is com.google.firebase.FirebaseNetworkException -> 
+                "No internet connection. Please check your network and try again."
+            message.contains("network", ignoreCase = true) -> 
+                "Connection failed. Please check your internet."
+            message.contains("user-not-found", ignoreCase = true) || message.contains("wrong-password", ignoreCase = true) ->
+                "Invalid email or password."
+            message.contains("email-already-in-use", ignoreCase = true) ->
+                "This email is already registered."
+            else -> exception?.localizedMessage ?: "An unexpected error occurred."
+        }
+    }
+
     fun signIn(email: String, password: String, onSuccess: () -> Unit) {
         viewModelScope.launch {
             _isLoading.value = true
@@ -60,13 +76,11 @@ class AuthViewModel @Inject constructor(
                                 onSuccess() // Should not happen
                             }
                         } else {
-                            _isLoading.value = false
-                            _error.value = task.exception?.message ?: "Authentication failed"
+                            handleAuthError(task.exception)
                         }
                     }
             } catch (e: Exception) {
-                _isLoading.value = false
-                _error.value = e.message ?: "An unknown error occurred"
+                handleAuthError(e)
             }
         }
     }
@@ -100,18 +114,15 @@ class AuthViewModel @Inject constructor(
                                             onSuccess()
                                         }
                                     } else {
-                                        _isLoading.value = false
-                                        _error.value = updateTask.exception?.message ?: "Profile update failed"
+                                        handleAuthError(updateTask.exception)
                                     }
                                 }
                         } else {
-                            _isLoading.value = false
-                            _error.value = task.exception?.message ?: "Account creation failed"
+                            handleAuthError(task.exception)
                         }
                     }
             } catch (e: Exception) {
-                _isLoading.value = false
-                _error.value = e.message ?: "An unknown error occurred"
+                handleAuthError(e)
             }
         }
     }
@@ -123,16 +134,15 @@ class AuthViewModel @Inject constructor(
             try {
                 firebaseAuth.sendPasswordResetEmail(email)
                     .addOnCompleteListener { task ->
-                        _isLoading.value = false
                         if (task.isSuccessful) {
+                            _isLoading.value = false
                             onSuccess()
                         } else {
-                            _error.value = task.exception?.message ?: "Failed to send reset email"
+                            handleAuthError(task.exception)
                         }
                     }
             } catch (e: Exception) {
-                _isLoading.value = false
-                _error.value = e.message ?: "An unknown error occurred"
+                handleAuthError(e)
             }
         }
     }
@@ -158,13 +168,11 @@ class AuthViewModel @Inject constructor(
                                 onSuccess() // Should not happen
                             }
                         } else {
-                            _isLoading.value = false
-                            _error.value = task.exception?.message ?: "Authentication failed"
+                            handleAuthError(task.exception)
                         }
                     }
             } catch (e: Exception) {
-                _isLoading.value = false
-                _error.value = e.message ?: "An unknown error occurred"
+                handleAuthError(e)
             }
         }
     }
@@ -191,8 +199,7 @@ class AuthViewModel @Inject constructor(
                             onSuccess()
                         }
                     } else {
-                        _isLoading.value = false
-                        _error.value = task.exception?.message ?: "Sign-in failed"
+                        handleAuthError(task.exception)
                     }
                 }
         }
@@ -219,13 +226,11 @@ class AuthViewModel @Inject constructor(
                                 onSuccess()
                             }
                         } else {
-                            _isLoading.value = false
-                            _error.value = task.exception?.message ?: "Guest sign-in failed"
+                            handleAuthError(task.exception)
                         }
                     }
             } catch (e: Exception) {
-                _isLoading.value = false
-                _error.value = e.message ?: "An unknown error occurred"
+                handleAuthError(e)
             }
         }
     }

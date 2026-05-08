@@ -67,6 +67,7 @@ fun LoginScreen(
 
     Box(
         modifier = Modifier
+            //.systemBarsPadding()
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
     ) {
@@ -76,26 +77,24 @@ fun LoginScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(24.dp),
+                .systemBarsPadding()
+                .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+            verticalArrangement = Arrangement.Top
         ) {
-            // Logo
+            Spacer(modifier = Modifier.height(16.dp))
             Logo()
+            Spacer(modifier = Modifier.height(16.dp))
 
-            Spacer(modifier = Modifier.height(40.dp))
-
-            // Card
             Surface(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(32.dp),
+                shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
                 color = MaterialTheme.colorScheme.surface.copy(alpha = 0.7f),
                 tonalElevation = 8.dp,
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
             ) {
                 Column(
-                    modifier = Modifier.padding(32.dp).animateContentSize()
+                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 24.dp).animateContentSize()
                 ) {
                     Text(
                         text = "Welcome back",
@@ -108,22 +107,24 @@ fun LoginScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
 
-                    Spacer(modifier = Modifier.height(32.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
 
                     // Error Banner
                     AnimatedVisibility(visible = error != null) {
                         error?.let {
                             Column {
                                 ErrorMessage(it)
-                                Spacer(modifier = Modifier.height(40.dp))
+                                Spacer(modifier = Modifier.height(16.dp))
                             }
                         }
                     }
 
                     // Reset Sent Banner
                     AnimatedVisibility(visible = resetSent) {
-                        SuccessMessage("Password reset email sent! Check your inbox.")
-                        Spacer(modifier = Modifier.height(24.dp))
+                        Column {
+                            SuccessMessage("Password reset email sent! Check your inbox.")
+                            Spacer(modifier = Modifier.height(16.dp))
+                        }
                     }
 
                     // Social Buttons
@@ -198,7 +199,7 @@ fun LoginScreen(
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(24.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -214,7 +215,7 @@ fun LoginScreen(
                         HorizontalDivider(modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
                     }
 
-                    Spacer(modifier = Modifier.height(24.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
 
                     // Form
                     AuthTextField(
@@ -264,7 +265,7 @@ fun LoginScreen(
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(32.dp))
+                    Spacer(modifier = Modifier.height(24.dp))
 
                     Button(
                         onClick = { viewModel.signIn(email, password, onLoginSuccess) },

@@ -63,6 +63,20 @@ class UserRepositoryImpl @Inject constructor(
             .toObject(UserProfile::class.java)
     }
 
+    override suspend fun updateUserProfile(
+        uid: String,
+        displayName: String?,
+        photoUrl: String?
+    ): Result<Unit> = runCatching {
+        firestore.collection("users").document(uid).update(
+            mapOf(
+                "displayName" to displayName,
+                "photoURL" to photoUrl,
+                "updatedAt" to FieldValue.serverTimestamp()
+            )
+        ).await()
+    }
+
     private suspend fun addPersonalNotification(
         uid: String,
         title: String,

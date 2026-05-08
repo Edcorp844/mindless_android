@@ -210,7 +210,7 @@ fun HomeScreen(
                                 } else {
                                     onCalculatingRouteChange(false)
                                     scope.launch { 
-                                        snackbarHostState.showSnackbar("Location unavailable. Please set location in emulator settings.") 
+                                        snackbarHostState.showSnackbar("Navigation not available on device.")
                                     }
                                 }
                             }.addOnFailureListener {

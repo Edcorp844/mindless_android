@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -60,6 +61,7 @@ fun SettingsScreen(
     val locationEnabled by viewModel.locationEnabled.collectAsState()
     val dataUsage by viewModel.dataUsage.collectAsState()
     val currentUser by viewModel.userState.collectAsState()
+    val userProfile by viewModel.userProfile.collectAsState()
     val notifications by viewModel.notifications.collectAsState()
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
@@ -75,6 +77,7 @@ fun SettingsScreen(
                     onLocationEnabledChange = { viewModel.setLocationEnabled(it) },
                     dataUsage = dataUsage,
                     currentUser = currentUser,
+                    userProfile = userProfile,
                     notifications = notifications,
                     onUpdateUser = { viewModel.updateCurrentUser() },
                     onItemClick = { 
@@ -120,6 +123,7 @@ fun SettingsScreen(
                     onLocationEnabledChange = { viewModel.setLocationEnabled(it) },
                     dataUsage = dataUsage,
                     currentUser = currentUser,
+                    userProfile = userProfile,
                     notifications = notifications,
                     onUpdateUser = { viewModel.updateCurrentUser() },
                     onItemClick = { 
@@ -154,6 +158,7 @@ fun SettingsListContent(
     onLocationEnabledChange: (Boolean) -> Unit,
     dataUsage: String,
     currentUser: FirebaseUser?,
+    userProfile: UserProfile?,
     notifications: List<AppNotification>,
     onUpdateUser: () -> Unit,
     onItemClick: (String) -> Unit,
@@ -208,6 +213,7 @@ fun SettingsListContent(
             // --- SECTION: ACCOUNT (iOS Style Cloud Account Tile) ---
             AccountTile(
                 currentUser = currentUser,
+                userProfile = userProfile,
                 onAccountClick = {
                     onItemClick("Account")
                 }
@@ -219,17 +225,28 @@ fun SettingsListContent(
                     ListItem(
                         headlineContent = { Text("Notifications") },
                         leadingContent = {
-                            BadgedBox(
-                                badge = {
-                                    if (unreadCount > 0) {
-                                        Badge { Text(unreadCount.toString()) }
+                            Icon(Icons.Outlined.Notifications, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                        },
+                        trailingContent = {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                if (unreadCount > 0) {
+                                    Surface(
+                                        shape = CircleShape,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.padding(end = 8.dp)
+                                    ) {
+                                        Text(
+                                            unreadCount.toString(),
+                                            style = MaterialTheme.typography.labelLarge,
+                                            fontWeight = FontWeight.Black,
+                                            color = MaterialTheme.colorScheme.onPrimary,
+                                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 2.dp)
+                                        )
                                     }
                                 }
-                            ) {
-                                Icon(Icons.Outlined.Notifications, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                                Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null)
                             }
                         },
-                        trailingContent = { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null) },
                         colors = ListItemDefaults.colors(
                             containerColor = if (selectedItem == "Notifications") MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainer
                         ),
@@ -360,21 +377,39 @@ fun SettingDetail(
     val helpState by viewModel.helpState.collectAsState()
     val faqState by viewModel.faqState.collectAsState()
     val dataUsage by viewModel.dataUsage.collectAsState()
+    val userProfile by viewModel.userProfile.collectAsState()
+
+    var isEditingProfile by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(title) },
+                title = { Text(if (title == "Account") "" else title) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                actions = {
+                    if (title == "Account" && currentUser != null && !currentUser.isAnonymous) {
+                        val isPasswordProvider = currentUser.providerData.any { it.providerId == "password" }
+                        if (isPasswordProvider) {
+                            IconButton(onClick = { isEditingProfile = !isEditingProfile }) {
+                                Icon(
+                                    if (isEditingProfile) Icons.Default.Close else Icons.Default.Edit,
+                                    contentDescription = "Edit Profile"
+                                )
+                            }
+                        }
                     }
                 }
             )
         },
         contentWindowInsets = WindowInsets(0, 0, 0, 0)
     ) { paddingValues ->
-        Box(modifier = Modifier.padding(paddingValues).fillMaxSize()) {
+        Box(modifier = Modifier
+            .padding(paddingValues)
+            .fillMaxSize()) {
             when (title) {
                 "Account" -> {
                     val isAnonymous = currentUser?.isAnonymous ?: true
@@ -393,62 +428,18 @@ fun SettingDetail(
                             )
                         }
                     } else {
-                        Column(
-                            modifier = Modifier.padding(16.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Surface(
-                                modifier = Modifier.size(100.dp),
-                                shape = RoundedCornerShape(50.dp),
-                                color = MaterialTheme.colorScheme.primaryContainer
-                            ) {
-                                if (currentUser.photoUrl != null) {
-                                    AsyncImage(
-                                        model = currentUser.photoUrl,
-                                        contentDescription = "Profile Picture",
-                                        modifier = Modifier.fillMaxSize()
-                                    )
-                                } else {
-                                    Box(contentAlignment = Alignment.Center) {
-                                        Icon(
-                                            imageVector = Icons.Default.Person,
-                                            contentDescription = null,
-                                            modifier = Modifier.size(48.dp),
-                                            tint = MaterialTheme.colorScheme.onPrimaryContainer
-                                        )
-                                    }
-                                }
+                        ProfileDetail(
+                            userProfile = userProfile,
+                            isEditing = isEditingProfile,
+                            onEditChange = { isEditingProfile = it },
+                            onSignOut = {
+                                viewModel.signOut()
+                                onBack()
+                            },
+                            onUpdateProfile = { name, photo ->
+                                viewModel.updateProfile(name, photo) { }
                             }
-                            
-                            Spacer(modifier = Modifier.height(16.dp))
-                            
-                            Text(
-                                text = currentUser.displayName ?: "Not Signed In",
-                                style = MaterialTheme.typography.headlineMedium,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Text(
-                                text = currentUser.email ?: "",
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            
-                            Spacer(modifier = Modifier.height(32.dp))
-                            
-                            Button(
-                                onClick = {
-                                    viewModel.signOut()
-                                    onBack()
-                                },
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = MaterialTheme.colorScheme.errorContainer,
-                                    contentColor = MaterialTheme.colorScheme.onErrorContainer
-                                ),
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Text("Sign Out")
-                            }
-                        }
+                        )
                     }
                 }
                 "Notifications" -> {
@@ -837,10 +828,13 @@ fun FaqItem(faq: FaqItem) {
 @Composable
 fun AccountTile(
     currentUser: FirebaseUser?,
+    userProfile: UserProfile? = null,
     onAccountClick: () -> Unit
 ) {
     val isAnonymous = currentUser?.isAnonymous ?: true
     val isSignedIn = currentUser != null && !isAnonymous
+    val displayName = userProfile?.displayName ?: currentUser?.displayName ?: "User"
+    val photoUrl = userProfile?.photoURL ?: currentUser?.photoUrl?.toString()
     
     Surface(
         onClick = onAccountClick,
@@ -860,9 +854,9 @@ fun AccountTile(
                 shape = RoundedCornerShape(32.dp),
                 color = MaterialTheme.colorScheme.primaryContainer
             ) {
-                if (isSignedIn && currentUser?.photoUrl != null) {
+                if (isSignedIn && photoUrl != null) {
                     AsyncImage(
-                        model = currentUser.photoUrl,
+                        model = photoUrl,
                         contentDescription = "Profile Picture",
                         modifier = Modifier.fillMaxSize()
                     )
@@ -882,7 +876,7 @@ fun AccountTile(
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = if (isSignedIn) (currentUser?.displayName ?: "User") else "MindAccess Account",
+                    text = if (isSignedIn) displayName else "MindAccess Account",
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                     maxLines = 1,
@@ -902,6 +896,167 @@ fun AccountTile(
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.outline
             )
+        }
+    }
+}
+
+@Composable
+fun ProfileDetail(
+    userProfile: UserProfile?,
+    isEditing: Boolean,
+    onEditChange: (Boolean) -> Unit,
+    onSignOut: () -> Unit,
+    onUpdateProfile: (String, String?) -> Unit
+) {
+    var displayName by remember(userProfile) { mutableStateOf(userProfile?.displayName ?: "") }
+    var photoUrl by remember(userProfile) { mutableStateOf(userProfile?.photoURL ?: "") }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        LazyColumn(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            item {
+                Spacer(modifier = Modifier.height(24.dp))
+                // Profile Image Section
+                Box(contentAlignment = Alignment.BottomEnd) {
+                    Surface(
+                        modifier = Modifier.size(100.dp),
+                        shape = MaterialTheme.shapes.extraLarge,
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                        border = BorderStroke(2.dp, MaterialTheme.colorScheme.primary)
+                    ) {
+                        if (photoUrl.isNotEmpty()) {
+                            AsyncImage(
+                                model = photoUrl,
+                                contentDescription = "Profile Picture",
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        } else {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = Icons.Default.Person,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(50.dp),
+                                    tint = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                            }
+                        }
+                    }
+                    if (isEditing) {
+                        SmallFloatingActionButton(
+                            onClick = { /* TODO: Image Picker */ },
+                            shape = CircleShape,
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor = MaterialTheme.colorScheme.onPrimary,
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Icon(Icons.Default.Edit, contentDescription = "Edit photo", modifier = Modifier.size(14.dp))
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                if (isEditing) {
+                    OutlinedTextField(
+                        value = displayName,
+                        onValueChange = { displayName = it },
+                        label = { Text("Display Name") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        shape = RoundedCornerShape(16.dp)
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    OutlinedTextField(
+                        value = photoUrl,
+                        onValueChange = { photoUrl = it },
+                        label = { Text("Photo URL") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        shape = RoundedCornerShape(16.dp)
+                    )
+                    Spacer(modifier = Modifier.height(24.dp))
+                    Button(
+                        onClick = {
+                            onUpdateProfile(displayName, photoUrl.takeIf { it.isNotEmpty() })
+                            onEditChange(false)
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp)
+                    ) {
+                        Text("Save Changes")
+                    }
+                } else {
+                    Text(
+                        text = userProfile?.displayName ?: "No Name",
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.ExtraBold
+                    )
+                    Text(
+                        text = userProfile?.email ?: "",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            if (!isEditing) {
+                item {
+                    SettingsGroup(title = "Account Information") {
+                        ListItem(
+                            headlineContent = { Text("Email") },
+                            trailingContent = { Text(userProfile?.email ?: "") },
+                            colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainer)
+                        )
+                        Spacer(modifier = Modifier.height(1.dp))
+                        ListItem(
+                            headlineContent = { Text("Provider") },
+                            trailingContent = { Text(userProfile?.provider ?: "Email") },
+                            colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainer)
+                        )
+                        Spacer(modifier = Modifier.height(1.dp))
+                        userProfile?.createdAt?.let {
+                            ListItem(
+                                headlineContent = { Text("Member Since") },
+                                trailingContent = {
+                                    val date = it.toDate()
+                                    Text(android.text.format.DateFormat.getMediumDateFormat(LocalContext.current).format(date))
+                                },
+                                colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainer)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        // Logout at the very bottom
+        if (!isEditing) {
+            Spacer(modifier = Modifier.weight(1f))
+            Button(
+                onClick = onSignOut,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 24.dp),
+                shape = RoundedCornerShape(16.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.errorContainer,
+                    contentColor = MaterialTheme.colorScheme.onErrorContainer
+                )
+            ) {
+                Icon(Icons.AutoMirrored.Filled.Login, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Sign Out")
+            }
         }
     }
 }

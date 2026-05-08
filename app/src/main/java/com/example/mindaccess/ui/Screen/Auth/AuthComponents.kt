@@ -39,6 +39,7 @@ fun BackgroundGlows() {
     Box(modifier = Modifier.fillMaxSize()) {
         Box(
             modifier = Modifier
+                .systemBarsPadding()
                 .size(400.dp)
                 .offset(x = (-150).dp, y = (-150).dp)
                 .blur(100.dp)

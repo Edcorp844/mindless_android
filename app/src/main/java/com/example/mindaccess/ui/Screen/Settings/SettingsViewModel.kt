@@ -62,9 +62,13 @@ class SettingsViewModel @Inject constructor(
     private val _faqState = MutableStateFlow<LegalState<FaqResponse>>(LegalState.Loading)
     val faqState = _faqState.asStateFlow()
 
+    private val _userProfile = MutableStateFlow<UserProfile?>(null)
+    val userProfile = _userProfile.asStateFlow()
+
     init {
         // Ensure all properties are initialized before starting observers
         observeNotifications()
+        observeUserProfile()
         updateDataUsage()
         fetchLegalData()
 
@@ -73,6 +77,33 @@ class SettingsViewModel @Inject constructor(
                 delay(5000)
                 updateDataUsage()
             }
+        }
+    }
+
+    private fun observeUserProfile() {
+        viewModelScope.launch {
+            _currentUser.collect { user ->
+                if (user != null) {
+                    _userProfile.value = userRepository.getUserProfile(user.uid)
+                } else {
+                    _userProfile.value = null
+                }
+            }
+        }
+    }
+
+    fun updateProfile(displayName: String, photoUrl: String?, onResult: (Boolean) -> Unit) {
+        val uid = firebaseAuth.currentUser?.uid ?: return
+        viewModelScope.launch {
+            userRepository.updateUserProfile(uid, displayName, photoUrl)
+                .onSuccess {
+                    _userProfile.value = _userProfile.value?.copy(
+                        displayName = displayName,
+                        photoURL = photoUrl
+                    )
+                    onResult(true)
+                }
+                .onFailure { onResult(false) }
         }
     }
 

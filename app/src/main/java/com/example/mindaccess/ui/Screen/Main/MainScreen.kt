@@ -3,6 +3,7 @@ package com.example.mindaccess.ui.Screen.Main
 import android.annotation.SuppressLint
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.Settings
@@ -109,7 +110,14 @@ fun MainScreen(
                         icon = {
                             if (screen == Screen.Settings && unreadCount > 0) {
                                 BadgedBox(
-                                    badge = { Badge { Text(unreadCount.toString()) } }
+                                    badge = {
+                                        Badge(
+                                            containerColor = MaterialTheme.colorScheme.primary,
+                                            contentColor = MaterialTheme.colorScheme.onPrimary
+                                        ) {
+                                            Text(unreadCount.toString())
+                                        }
+                                    }
                                 ) {
                                     Icon(screen.icon, contentDescription = screen.label)
                                 }
@@ -149,7 +157,14 @@ fun MainScreen(
                                 icon = {
                             if (screen == Screen.Settings && unreadCount > 0) {
                                 BadgedBox(
-                                    badge = { Badge { Text(unreadCount.toString()) } }
+                                    badge = {
+                                        Badge(
+                                            containerColor = MaterialTheme.colorScheme.primary,
+                                            contentColor = MaterialTheme.colorScheme.onPrimary
+                                        ) {
+                                            Text(unreadCount.toString())
+                                        }
+                                    }
                                 ) {
                                     Icon(screen.icon, contentDescription = screen.label)
                                 }
