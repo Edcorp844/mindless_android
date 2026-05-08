@@ -54,6 +54,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun SettingsScreen(
     isExpanded: Boolean = false,
+    onNavigateToNotifications: () -> Unit = {},
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
     val locationEnabled by viewModel.locationEnabled.collectAsState()
@@ -76,7 +77,10 @@ fun SettingsScreen(
                     currentUser = currentUser,
                     notifications = notifications,
                     onUpdateUser = { viewModel.updateCurrentUser() },
-                    onItemClick = { selectedItem = it },
+                    onItemClick = { 
+                        if (it == "Notifications") onNavigateToNotifications()
+                        else selectedItem = it 
+                    },
                     selectedItem = selectedItem
                 )
             }
@@ -89,7 +93,10 @@ fun SettingsScreen(
                         viewModel = viewModel,
                         currentUser = currentUser,
                         notifications = notifications,
-                        onNavigate = { selectedItem = it },
+                        onNavigate = { 
+                            if (it == "Notifications") onNavigateToNotifications()
+                            else selectedItem = it 
+                        },
                         onBack = { selectedItem = null }
                     )
                 } else {
@@ -115,7 +122,10 @@ fun SettingsScreen(
                     currentUser = currentUser,
                     notifications = notifications,
                     onUpdateUser = { viewModel.updateCurrentUser() },
-                    onItemClick = { selectedItem = it }
+                    onItemClick = { 
+                        if (it == "Notifications") onNavigateToNotifications()
+                        else selectedItem = it 
+                    }
                 )
             } else {
                 BackHandler {
@@ -126,7 +136,10 @@ fun SettingsScreen(
                     viewModel = viewModel,
                     currentUser = currentUser,
                     notifications = notifications,
-                    onNavigate = { selectedItem = it },
+                    onNavigate = { 
+                        if (it == "Notifications") onNavigateToNotifications()
+                        else selectedItem = it 
+                    },
                     onBack = { selectedItem = null }
                 )
             }

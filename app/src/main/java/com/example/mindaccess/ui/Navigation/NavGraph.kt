@@ -11,7 +11,11 @@ import com.example.mindaccess.ui.Screen.CenterDetails.CenterDetailsScreen
 import com.example.mindaccess.ui.Screen.Main.MainScreen
 
 @Composable
-fun NavGraph(navController: NavHostController) {
+fun NavGraph(
+    navController: NavHostController,
+    startWithNotifications: Boolean = false,
+    onNotificationsHandled: () -> Unit = {}
+) {
     var isCalculatingRoute by remember { mutableStateOf(false) }
 
     NavHost(
@@ -35,7 +39,9 @@ fun NavGraph(navController: NavHostController) {
                     backStackEntry.savedStateHandle["directions_center_id"] = null
                 },
                 isCalculatingRoute = isCalculatingRoute,
-                onCalculatingRouteChange = { isCalculatingRoute = it }
+                onCalculatingRouteChange = { isCalculatingRoute = it },
+                startWithNotifications = startWithNotifications,
+                onNotificationsHandled = onNotificationsHandled
             )
         }
         composable(

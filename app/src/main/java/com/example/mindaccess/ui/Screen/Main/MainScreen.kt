@@ -8,6 +8,7 @@ import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.outlined.Apartment
 import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.*
 import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
@@ -28,12 +29,14 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.mindaccess.ui.Screen.Centers.CentersScreen
 import com.example.mindaccess.ui.Screen.Home.HomeScreen
+import com.example.mindaccess.ui.Screen.Settings.NotificationsScreen
 import com.example.mindaccess.ui.Screen.Settings.SettingsScreen
 
 sealed class Screen(val route: String, val label: String, val icon: ImageVector) {
     object Home : Screen("home", "Home", Icons.Outlined.Home)
     object Centers : Screen("centers_list", "Centers", Icons.Outlined.Apartment)
     object Settings : Screen("settings", "Settings", Icons.Outlined.Settings)
+    object Notifications : Screen("notifications", "Notifications", Icons.Outlined.Notifications)
 }
 
 @SuppressLint("ContextCastToActivity")
@@ -46,9 +49,24 @@ fun MainScreen(
     onDirectionsHandled: () -> Unit = {},
     isCalculatingRoute: Boolean = false,
     onCalculatingRouteChange: (Boolean) -> Unit = {},
-    settingsViewModel: com.example.mindaccess.ui.Screen.Settings.SettingsViewModel = hiltViewModel()
+    settingsViewModel: com.example.mindaccess.ui.Screen.Settings.SettingsViewModel = hiltViewModel(),
+    startWithNotifications: Boolean = false,
+    onNotificationsHandled: () -> Unit = {}
 ) {
     val navController = rememberNavController()
+
+    LaunchedEffect(startWithNotifications) {
+        if (startWithNotifications) {
+            navController.navigate(Screen.Notifications.route) {
+                popUpTo(navController.graph.findStartDestination().id) {
+                    saveState = true
+                }
+                launchSingleTop = true
+                restoreState = true
+            }
+            onNotificationsHandled()
+        }
+    }
     val items = listOf(
         Screen.Home,
         Screen.Centers,
@@ -182,7 +200,17 @@ fun MainScreen(
                         )
                     }
                     composable(Screen.Settings.route) { 
-                        SettingsScreen(isExpanded = useNavigationRail)
+                        SettingsScreen(
+                            isExpanded = useNavigationRail,
+                            onNavigateToNotifications = {
+                                navController.navigate(Screen.Notifications.route)
+                            }
+                        )
+                    }
+                    composable(Screen.Notifications.route) {
+                        NotificationsScreen(
+                            onBack = { navController.popBackStack() }
+                        )
                     }
                 }
             }
