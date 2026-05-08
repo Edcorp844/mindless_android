@@ -83,7 +83,8 @@ fun HomeScreen(
     pendingDirectionsCenterId: Int? = null,
     onDirectionsHandled: () -> Unit = {},
     isCalculatingRoute: Boolean = false,
-    onCalculatingRouteChange: (Boolean) -> Unit = {}
+    onCalculatingRouteChange: (Boolean) -> Unit = {},
+    isExpanded: Boolean = false
 ) {
     val centers by viewModel.centers.collectAsState()
     val categories by viewModel.categories.collectAsState()
@@ -104,9 +105,6 @@ fun HomeScreen(
     val isDarkMode = isSystemInDarkTheme()
     val mapStyle = if (isDarkMode) Style.DARK else Style.MAPBOX_STREETS
     
-    val windowSizeClass = currentWindowAdaptiveInfo().windowSizeClass
-    val isExpanded = windowSizeClass.windowWidthSizeClass == WindowWidthSizeClass.EXPANDED
-
     var navigationRoutes by remember { mutableStateOf<List<NavigationRoute>>(emptyList()) }
     
     val mapViewportState = rememberMapViewportState {
@@ -412,7 +410,8 @@ fun HomeScreen(
                 Box(
                     modifier = Modifier
                         .align(Alignment.TopCenter)
-                        .padding(top = 64.dp)
+                        .statusBarsPadding()
+                        .padding(top = 16.dp)
                 ) {
                     var expanded by remember { mutableStateOf(false) }
                     
@@ -520,7 +519,8 @@ fun HomeScreen(
                     Box(
                         modifier = Modifier
                             .align(Alignment.TopCenter)
-                            .padding(top = 64.dp, start = 16.dp, end = 16.dp)
+                            .statusBarsPadding()
+                            .padding(top = 16.dp, start = 16.dp, end = 16.dp)
                     ) {
                         Surface(
                             shape = RoundedCornerShape(16.dp),
@@ -565,7 +565,11 @@ fun HomeScreen(
                 exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
-                    .padding(bottom = 32.dp, start = 16.dp, end = 16.dp)
+                    .padding(
+                        bottom = 32.dp + if (isExpanded) WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() else 0.dp,
+                        start = 16.dp,
+                        end = 16.dp
+                    )
             ) {
                     selectedCenter?.let { center ->
                         MapFloatingCard(

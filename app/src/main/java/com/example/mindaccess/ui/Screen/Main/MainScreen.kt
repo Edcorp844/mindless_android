@@ -98,6 +98,7 @@ fun MainScreen(
                 if (!useNavigationRail) {
                     NavigationBar(
                         containerColor = Color.Transparent,
+                        windowInsets = WindowInsets.navigationBars
                     ) {
                         items.forEach { screen ->
                             val selected = currentDestination?.hierarchy?.any { it.route == screen.route } == true
@@ -125,6 +126,7 @@ fun MainScreen(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
+                    .windowInsetsPadding(WindowInsets.navigationBars.only(WindowInsetsSides.Horizontal))
                     .padding(bottom = innerPadding.calculateBottomPadding())
             ) {
                 NavHost(
@@ -137,7 +139,8 @@ fun MainScreen(
                             pendingDirectionsCenterId = directionsCenterId,
                             onDirectionsHandled = onDirectionsHandled,
                             isCalculatingRoute = isCalculatingRoute,
-                            onCalculatingRouteChange = onCalculatingRouteChange
+                            onCalculatingRouteChange = onCalculatingRouteChange,
+                            isExpanded = useNavigationRail
                         )
                     }
                     composable(Screen.Centers.route) {

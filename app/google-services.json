@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "45623960153",
+    "project_id": "mindacessdatabase",
+    "storage_bucket": "mindacessdatabase.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:45623960153:android:a2bfc8cd8fa1ee0d93c748",
+        "android_client_info": {
+          "package_name": "com.example.mindaccess"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "45623960153-baa4e4ejtu8uhnh0kmcgrtlcl6kb499m.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA-uDiF5hHjVMAUgNK6zTc8w7i1-Lcy0yI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "45623960153-baa4e4ejtu8uhnh0kmcgrtlcl6kb499m.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

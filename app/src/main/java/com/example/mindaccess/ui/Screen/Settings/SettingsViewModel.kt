@@ -7,12 +7,16 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.mindaccess.Domain.Model.*
 import com.example.mindaccess.Domain.Repository.LegalRepository
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.FirebaseUser
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.util.Locale
 import javax.inject.Inject
@@ -28,6 +32,10 @@ class SettingsViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     private val legalRepository: LegalRepository
 ) : ViewModel() {
+
+    private val firebaseAuth = FirebaseAuth.getInstance()
+    
+    val currentUser = MutableStateFlow(firebaseAuth.currentUser).asStateFlow()
 
     private val sharedPrefs = context.getSharedPreferences("settings_prefs", Context.MODE_PRIVATE)
 
@@ -83,6 +91,56 @@ class SettingsViewModel @Inject constructor(
                 .onSuccess { _faqState.value = LegalState.Success(it) }
                 .onFailure { _faqState.value = LegalState.Error(it.message ?: "Unknown error") }
         }
+    }
+
+    fun updateCurrentUser() {
+        viewModelScope.launch {
+            _currentUser.value = firebaseAuth.currentUser
+        }
+    }
+
+    fun signInWithEmail(email: String, password: String, onResult: (Boolean, String?) -> Unit) {
+        viewModelScope.launch {
+            try {
+                firebaseAuth.signInWithEmailAndPassword(email, password)
+                    .addOnCompleteListener { task ->
+                        if (task.isSuccessful) {
+                            updateCurrentUser()
+                            onResult(true, null)
+                        } else {
+                            onResult(false, task.exception?.message ?: "Authentication failed")
+                        }
+                    }
+            } catch (e: Exception) {
+                onResult(false, e.message)
+            }
+        }
+    }
+
+    fun signUpWithEmail(email: String, password: String, onResult: (Boolean, String?) -> Unit) {
+        viewModelScope.launch {
+            try {
+                firebaseAuth.createUserWithEmailAndPassword(email, password)
+                    .addOnCompleteListener { task ->
+                        if (task.isSuccessful) {
+                            updateCurrentUser()
+                            onResult(true, null)
+                        } else {
+                            onResult(false, task.exception?.message ?: "Account creation failed")
+                        }
+                    }
+            } catch (e: Exception) {
+                onResult(false, e.message)
+            }
+        }
+    }
+
+    private val _currentUser = MutableStateFlow(firebaseAuth.currentUser)
+    val userState: StateFlow<FirebaseUser?> = _currentUser.asStateFlow()
+
+    fun signOut() {
+        firebaseAuth.signOut()
+        _currentUser.value = null
     }
 
     fun setLocationEnabled(enabled: Boolean) {

@@ -19,6 +19,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.Launch
+import androidx.compose.material.icons.automirrored.filled.Login
 import androidx.compose.material.icons.automirrored.outlined.HelpOutline
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
@@ -32,10 +33,20 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import coil.compose.AsyncImage
+import com.example.mindaccess.R
 import com.example.mindaccess.Domain.Model.*
+import com.google.firebase.auth.FirebaseUser
+import androidx.credentials.CredentialManager
+import androidx.credentials.GetCredentialRequest
+import com.google.android.libraries.identity.googleid.GetGoogleIdOption
+import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
+import com.google.firebase.auth.GoogleAuthProvider
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -45,6 +56,9 @@ fun SettingsScreen(
 ) {
     val locationEnabled by viewModel.locationEnabled.collectAsState()
     val dataUsage by viewModel.dataUsage.collectAsState()
+    val currentUser by viewModel.userState.collectAsState()
+    val coroutineScope = rememberCoroutineScope()
+    val context = LocalContext.current
     
     var selectedItem by remember { mutableStateOf<String?>(null) }
 
@@ -56,6 +70,8 @@ fun SettingsScreen(
                     locationEnabled = locationEnabled,
                     onLocationEnabledChange = { viewModel.setLocationEnabled(it) },
                     dataUsage = dataUsage,
+                    currentUser = currentUser,
+                    onUpdateUser = { viewModel.updateCurrentUser() },
                     onItemClick = { selectedItem = it },
                     selectedItem = selectedItem
                 )
@@ -67,6 +83,7 @@ fun SettingsScreen(
                     SettingDetail(
                         title = selectedItem!!,
                         viewModel = viewModel,
+                        currentUser = currentUser,
                         onNavigate = { selectedItem = it },
                         onBack = { selectedItem = null }
                     )
@@ -90,6 +107,8 @@ fun SettingsScreen(
                     locationEnabled = locationEnabled,
                     onLocationEnabledChange = { viewModel.setLocationEnabled(it) },
                     dataUsage = dataUsage,
+                    currentUser = currentUser,
+                    onUpdateUser = { viewModel.updateCurrentUser() },
                     onItemClick = { selectedItem = it }
                 )
             } else {
@@ -99,6 +118,7 @@ fun SettingsScreen(
                 SettingDetail(
                     title = targetItem,
                     viewModel = viewModel,
+                    currentUser = currentUser,
                     onNavigate = { selectedItem = it },
                     onBack = { selectedItem = null }
                 )
@@ -113,10 +133,13 @@ fun SettingsListContent(
     locationEnabled: Boolean,
     onLocationEnabledChange: (Boolean) -> Unit,
     dataUsage: String,
+    currentUser: FirebaseUser?,
+    onUpdateUser: () -> Unit,
     onItemClick: (String) -> Unit,
     selectedItem: String? = null
 ) {
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
     val packageInfo = remember {
         context.packageManager.getPackageInfo(context.packageName, 0)
     }
@@ -150,7 +173,8 @@ fun SettingsListContent(
                 },
                 scrollBehavior = scrollBehavior,
             )
-        }
+        },
+        contentWindowInsets = WindowInsets(0, 0, 0, 0)
     ) { paddingValues ->
         Column(
             modifier = Modifier
@@ -160,6 +184,15 @@ fun SettingsListContent(
                 .padding(horizontal = 16.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            // --- SECTION: ACCOUNT (iOS Style Cloud Account Tile) ---
+            AccountTile(
+                user = null,
+                currentUser = currentUser,
+                onAccountClick = {
+                    onItemClick("Account")
+                }
+            )
+
             // --- SECTION: PERMISSIONS AND USAGE ---
             SettingsGroup(title = "Permissions And Usage") {
                 ListItem(
@@ -172,6 +205,7 @@ fun SettingsListContent(
                     },
                     colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainer)
                 )
+                Spacer(modifier = Modifier.height(1.dp))
                 ListItem(
                     headlineContent = { Text("Usage Tracking") },
                     leadingContent = { Icon(Icons.Outlined.BarChart, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
@@ -211,6 +245,7 @@ fun SettingsListContent(
                     ),
                     modifier = Modifier.clickable { onItemClick("Terms & Conditions") }
                 )
+                Spacer(modifier = Modifier.height(1.dp))
                 ListItem(
                     headlineContent = { Text("Open Source Licenses") },
                     leadingContent = { Icon(Icons.Outlined.FormatQuote, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
@@ -232,6 +267,7 @@ fun SettingsListContent(
                     ),
                     modifier = Modifier.clickable { onItemClick("Help and Support") }
                 )
+                Spacer(modifier = Modifier.height(1.dp))
                 ListItem(
                     headlineContent = { Text("FAQ's") },
                     leadingContent = { Icon(Icons.Outlined.QuestionAnswer, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
@@ -258,8 +294,6 @@ fun SettingsListContent(
                     }
                 )
             }
-
-            Spacer(modifier = Modifier.height(48.dp))
         }
     }
 }
@@ -269,10 +303,12 @@ fun SettingsListContent(
 fun SettingDetail(
     title: String,
     viewModel: SettingsViewModel,
+    currentUser: FirebaseUser?,
     onBack: () -> Unit,
     onNavigate: (String) -> Unit
 ) {
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
     val termsState by viewModel.termsState.collectAsState()
     val licenseState by viewModel.licenseState.collectAsState()
     val helpState by viewModel.helpState.collectAsState()
@@ -289,10 +325,260 @@ fun SettingDetail(
                     }
                 }
             )
-        }
+        },
+        contentWindowInsets = WindowInsets(0, 0, 0, 0)
     ) { paddingValues ->
         Box(modifier = Modifier.padding(paddingValues).fillMaxSize()) {
             when (title) {
+                "Account" -> {
+                    if (currentUser == null) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(24.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Top
+                        ) {
+                            Spacer(modifier = Modifier.height(40.dp))
+                            Surface(
+                                modifier = Modifier.size(120.dp),
+                                shape = RoundedCornerShape(30.dp),
+                                color = MaterialTheme.colorScheme.primaryContainer
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        imageVector = Icons.Default.Person,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(64.dp),
+                                        tint = MaterialTheme.colorScheme.onPrimaryContainer
+                                    )
+                                }
+                            }
+                            
+                            Spacer(modifier = Modifier.height(32.dp))
+                            
+                            Text(
+                                text = "Sign in to Mind Access",
+                                style = MaterialTheme.typography.headlineMedium,
+                                fontWeight = FontWeight.Bold,
+                                textAlign = TextAlign.Center
+                            )
+
+                            Spacer(modifier = Modifier.height(12.dp))
+
+                            Text(
+                                text = "Sign in with your Google account or email to sync your mind data, centers, and preferences across all your devices.",
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = TextAlign.Center,
+                                lineHeight = 24.sp
+                            )
+                            
+                            Spacer(modifier = Modifier.height(32.dp))
+
+                            var useEmail by remember { mutableStateOf(false) }
+                            var isSignUp by remember { mutableStateOf(false) }
+                            var email by remember { mutableStateOf("") }
+                            var password by remember { mutableStateOf("") }
+                            var errorMessage by remember { mutableStateOf<String?>(null) }
+                            var isLoading by remember { mutableStateOf(false) }
+
+                            if (!useEmail) {
+                                Button(
+                                    onClick = {
+                                        coroutineScope.launch {
+                                            try {
+                                                val credentialManager = CredentialManager.create(context)
+                                                val googleIdOption = GetGoogleIdOption.Builder()
+                                                    .setFilterByAuthorizedAccounts(false)
+                                                    .setServerClientId(context.getString(R.string.default_web_client_id))
+                                                    .setAutoSelectEnabled(true)
+                                                    .build()
+
+                                                val request = GetCredentialRequest.Builder()
+                                                    .addCredentialOption(googleIdOption)
+                                                    .build()
+
+                                                val result = credentialManager.getCredential(context, request)
+                                                val credential = result.credential
+
+                                                if (credential is GoogleIdTokenCredential) {
+                                                    val firebaseCredential = GoogleAuthProvider.getCredential(credential.idToken, null)
+                                                    com.google.firebase.auth.FirebaseAuth.getInstance()
+                                                        .signInWithCredential(firebaseCredential)
+                                                        .addOnCompleteListener { task ->
+                                                            if (task.isSuccessful) {
+                                                                viewModel.updateCurrentUser()
+                                                            }
+                                                        }
+                                                }
+                                            } catch (e: Exception) {
+                                                e.printStackTrace()
+                                            }
+                                        }
+                                    },
+                                    modifier = Modifier.fillMaxWidth().height(56.dp),
+                                    shape = RoundedCornerShape(16.dp)
+                                ) {
+                                    Icon(Icons.AutoMirrored.Filled.Login, contentDescription = null)
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("Sign in with Google")
+                                }
+
+                                Spacer(modifier = Modifier.height(16.dp))
+
+                                OutlinedButton(
+                                    onClick = { useEmail = true },
+                                    modifier = Modifier.fillMaxWidth().height(56.dp),
+                                    shape = RoundedCornerShape(16.dp)
+                                ) {
+                                    Icon(Icons.Default.Email, contentDescription = null)
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("Continue with Email")
+                                }
+                            } else {
+                                Column(
+                                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    OutlinedTextField(
+                                        value = email,
+                                        onValueChange = { email = it; errorMessage = null },
+                                        label = { Text("Email") },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        shape = RoundedCornerShape(12.dp),
+                                        singleLine = true,
+                                        leadingIcon = { Icon(Icons.Default.Email, contentDescription = null) }
+                                    )
+
+                                    OutlinedTextField(
+                                        value = password,
+                                        onValueChange = { password = it; errorMessage = null },
+                                        label = { Text("Password") },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        shape = RoundedCornerShape(12.dp),
+                                        singleLine = true,
+                                        visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                                        leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null) }
+                                    )
+
+                                    if (errorMessage != null) {
+                                        Text(
+                                            text = errorMessage!!,
+                                            color = MaterialTheme.colorScheme.error,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            modifier = Modifier.padding(start = 4.dp)
+                                        )
+                                    }
+
+                                    Button(
+                                        onClick = {
+                                            isLoading = true
+                                            val callback: (Boolean, String?) -> Unit = { success, error ->
+                                                isLoading = false
+                                                if (!success) {
+                                                    errorMessage = error
+                                                }
+                                            }
+                                            if (isSignUp) {
+                                                viewModel.signUpWithEmail(email, password, callback)
+                                            } else {
+                                                viewModel.signInWithEmail(email, password, callback)
+                                            }
+                                        },
+                                        modifier = Modifier.fillMaxWidth().height(56.dp),
+                                        shape = RoundedCornerShape(16.dp),
+                                        enabled = email.isNotBlank() && password.isNotBlank() && !isLoading
+                                    ) {
+                                        if (isLoading) {
+                                            CircularProgressIndicator(
+                                                modifier = Modifier.size(24.dp),
+                                                color = MaterialTheme.colorScheme.onPrimary,
+                                                strokeWidth = 2.dp
+                                            )
+                                        } else {
+                                            Text(if (isSignUp) "Create Account" else "Sign In")
+                                        }
+                                    }
+
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        TextButton(onClick = { useEmail = false }) {
+                                            Text("Back to Google")
+                                        }
+                                        TextButton(onClick = { isSignUp = !isSignUp }) {
+                                            Text(if (isSignUp) "Already have an account?" else "Create account")
+                                        }
+                                    }
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.weight(1f))
+                            
+                            Spacer(modifier = Modifier.height(32.dp))
+                        }
+                    } else {
+                        Column(
+                            modifier = Modifier.padding(16.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Surface(
+                                modifier = Modifier.size(100.dp),
+                                shape = RoundedCornerShape(50.dp),
+                                color = MaterialTheme.colorScheme.primaryContainer
+                            ) {
+                                if (currentUser.photoUrl != null) {
+                                    AsyncImage(
+                                        model = currentUser.photoUrl,
+                                        contentDescription = "Profile Picture",
+                                        modifier = Modifier.fillMaxSize()
+                                    )
+                                } else {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Icon(
+                                            imageVector = Icons.Default.Person,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(48.dp),
+                                            tint = MaterialTheme.colorScheme.onPrimaryContainer
+                                        )
+                                    }
+                                }
+                            }
+                            
+                            Spacer(modifier = Modifier.height(16.dp))
+                            
+                            Text(
+                                text = currentUser.displayName ?: "Not Signed In",
+                                style = MaterialTheme.typography.headlineMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = currentUser.email ?: "",
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            
+                            Spacer(modifier = Modifier.height(32.dp))
+                            
+                            Button(
+                                onClick = {
+                                    viewModel.signOut()
+                                    onBack()
+                                },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.errorContainer,
+                                    contentColor = MaterialTheme.colorScheme.onErrorContainer
+                                ),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text("Sign Out")
+                            }
+                        }
+                    }
+                }
                 "Usage Tracking" -> {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text("Data Usage Details", style = MaterialTheme.typography.titleLarge)
@@ -663,6 +949,78 @@ fun FaqItem(faq: FaqItem) {
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 lineHeight = 20.sp
+            )
+        }
+    }
+}
+
+@Composable
+fun AccountTile(
+    user: FirebaseUser?,
+    currentUser: FirebaseUser?,
+    onAccountClick: () -> Unit
+) {
+    val displayUser = currentUser ?: user
+    
+    Surface(
+        onClick = onAccountClick,
+        shape = RoundedCornerShape(28.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier
+                .padding(16.dp)
+                .fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Avatar / Profile Image
+            Surface(
+                modifier = Modifier.size(64.dp),
+                shape = RoundedCornerShape(32.dp),
+                color = MaterialTheme.colorScheme.primaryContainer
+            ) {
+                if (displayUser?.photoUrl != null) {
+                    AsyncImage(
+                        model = displayUser.photoUrl,
+                        contentDescription = "Profile Picture",
+                        modifier = Modifier.fillMaxSize()
+                    )
+                } else {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.Default.Person,
+                            contentDescription = null,
+                            modifier = Modifier.size(32.dp),
+                            tint = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.width(16.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = displayUser?.displayName ?: "Sign in to Mind Access",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = displayUser?.email ?: "Google Account, Cloud, & Sync",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.outline
             )
         }
     }

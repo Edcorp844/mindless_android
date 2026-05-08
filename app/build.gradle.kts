@@ -5,7 +5,7 @@ plugins {
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp)
     alias(libs.plugins.hilt.android)
-
+    alias(libs.plugins.google.services)
 }
 
 android {
@@ -93,6 +93,17 @@ dependencies {
 
     // Location
     implementation(libs.play.services.location)
+    implementation(libs.play.services.auth)
+
+    // Firebase
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.auth)
+
+    // Credentials
+    implementation(libs.androidx.credentials)
+    implementation(libs.androidx.credentials.play.services.auth)
+    implementation(libs.googleid)
+    implementation(libs.coil.compose)
 
     // Retrofit & Networking
     implementation(libs.retrofit)

@@ -164,7 +164,8 @@ fun CentersScreenContent(
                     },
                     expanded = isSearchActive,
                     onExpandedChange = { isSearchActive = it },
-                    modifier = Modifier.fillMaxWidth().statusBarsPadding()
+                    modifier = Modifier.fillMaxWidth(),
+                    windowInsets = WindowInsets(0, 0, 0, 0)
                 ) {
                     LazyVerticalGrid(
                         columns = GridCells.Fixed(1),
@@ -195,7 +196,7 @@ fun CentersScreenContent(
                     color = backgroundColor,
                     tonalElevation = if (scrollBehavior.state.collapsedFraction > 0f) 3.dp else 0.dp
                 ) {
-                    Column(modifier = Modifier.windowInsetsPadding(WindowInsets.statusBars)) {
+                    Column(modifier = Modifier.statusBarsPadding()) {
                         LargeTopAppBar(
                             title = {
                                 Text(
@@ -214,7 +215,6 @@ fun CentersScreenContent(
                                 containerColor = Color.Transparent,
                                 scrolledContainerColor = Color.Transparent
                             ),
-                            // We already handle insets in the parent Column
                             windowInsets = WindowInsets(0, 0, 0, 0)
                         )
                         CategoryFilterRow(
@@ -225,7 +225,8 @@ fun CentersScreenContent(
                     }
                 }
             }
-        }
+        },
+        contentWindowInsets = WindowInsets(0, 0, 0, 0)
     ) { paddingValues ->
         Box(
             modifier = Modifier

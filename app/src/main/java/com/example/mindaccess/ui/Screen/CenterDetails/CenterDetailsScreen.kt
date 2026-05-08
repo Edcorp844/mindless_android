@@ -210,10 +210,13 @@ fun CenterDetailsContent(
                     }
 
                     Spacer(modifier = Modifier.height(24.dp))
-                    Row(
-                        modifier = Modifier.horizontalScroll(rememberScrollState()),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
+                    FlowRow(
+                        modifier = Modifier
+                            .fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp), // Space between wrapped lines
+                        maxItemsInEachRow = Int.MAX_VALUE // Default behavior
+                    ){
                         Button(
                             onClick = {
                                 if (phones.size > 1) {
