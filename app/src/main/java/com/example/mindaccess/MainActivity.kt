@@ -9,12 +9,14 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.navigation.compose.rememberNavController
 import com.example.mindaccess.ui.Navigation.NavGraph
 import com.example.mindaccess.ui.theme.ContrastAwareMindAcessTheme
+import com.mapbox.navigation.core.lifecycle.MapboxNavigationApp
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        MapboxNavigationApp.attach(this)
         enableEdgeToEdge()
         setContent {
             ContrastAwareMindAcessTheme(dynamicColor = true) {
