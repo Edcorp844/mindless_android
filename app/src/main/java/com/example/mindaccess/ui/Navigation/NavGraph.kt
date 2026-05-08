@@ -5,6 +5,8 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
+import com.example.mindaccess.ui.Screen.Auth.LoginScreen
+import com.example.mindaccess.ui.Screen.Auth.RegisterScreen
 import com.example.mindaccess.ui.Screen.CenterDetails.CenterDetailsScreen
 import com.example.mindaccess.ui.Screen.Main.MainScreen
 

@@ -40,6 +40,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.example.mindaccess.R
 import com.example.mindaccess.Domain.Model.*
+import com.example.mindaccess.ui.Screen.Auth.LoginScreen
+import com.example.mindaccess.ui.Screen.Auth.RegisterScreen
 import com.google.firebase.auth.FirebaseUser
 import androidx.credentials.CredentialManager
 import androidx.credentials.GetCredentialRequest
@@ -186,7 +188,6 @@ fun SettingsListContent(
         ) {
             // --- SECTION: ACCOUNT (iOS Style Cloud Account Tile) ---
             AccountTile(
-                user = null,
                 currentUser = currentUser,
                 onAccountClick = {
                     onItemClick("Account")
@@ -331,194 +332,20 @@ fun SettingDetail(
         Box(modifier = Modifier.padding(paddingValues).fillMaxSize()) {
             when (title) {
                 "Account" -> {
-                    if (currentUser == null) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(24.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.Top
-                        ) {
-                            Spacer(modifier = Modifier.height(40.dp))
-                            Surface(
-                                modifier = Modifier.size(120.dp),
-                                shape = RoundedCornerShape(30.dp),
-                                color = MaterialTheme.colorScheme.primaryContainer
-                            ) {
-                                Box(contentAlignment = Alignment.Center) {
-                                    Icon(
-                                        imageVector = Icons.Default.Person,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(64.dp),
-                                        tint = MaterialTheme.colorScheme.onPrimaryContainer
-                                    )
-                                }
-                            }
-                            
-                            Spacer(modifier = Modifier.height(32.dp))
-                            
-                            Text(
-                                text = "Sign in to Mind Access",
-                                style = MaterialTheme.typography.headlineMedium,
-                                fontWeight = FontWeight.Bold,
-                                textAlign = TextAlign.Center
+                    val isAnonymous = currentUser?.isAnonymous ?: true
+                    if (currentUser == null || isAnonymous) {
+                        var isRegistering by remember { mutableStateOf(false) }
+
+                        if (isRegistering) {
+                            RegisterScreen(
+                                onRegisterSuccess = { viewModel.updateCurrentUser() },
+                                onNavigateToLogin = { isRegistering = false }
                             )
-
-                            Spacer(modifier = Modifier.height(12.dp))
-
-                            Text(
-                                text = "Sign in with your Google account or email to sync your mind data, centers, and preferences across all your devices.",
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                textAlign = TextAlign.Center,
-                                lineHeight = 24.sp
+                        } else {
+                            LoginScreen(
+                                onLoginSuccess = { viewModel.updateCurrentUser() },
+                                onNavigateToRegister = { isRegistering = true }
                             )
-                            
-                            Spacer(modifier = Modifier.height(32.dp))
-
-                            var useEmail by remember { mutableStateOf(false) }
-                            var isSignUp by remember { mutableStateOf(false) }
-                            var email by remember { mutableStateOf("") }
-                            var password by remember { mutableStateOf("") }
-                            var errorMessage by remember { mutableStateOf<String?>(null) }
-                            var isLoading by remember { mutableStateOf(false) }
-
-                            if (!useEmail) {
-                                Button(
-                                    onClick = {
-                                        coroutineScope.launch {
-                                            try {
-                                                val credentialManager = CredentialManager.create(context)
-                                                val googleIdOption = GetGoogleIdOption.Builder()
-                                                    .setFilterByAuthorizedAccounts(false)
-                                                    .setServerClientId(context.getString(R.string.default_web_client_id))
-                                                    .setAutoSelectEnabled(true)
-                                                    .build()
-
-                                                val request = GetCredentialRequest.Builder()
-                                                    .addCredentialOption(googleIdOption)
-                                                    .build()
-
-                                                val result = credentialManager.getCredential(context, request)
-                                                val credential = result.credential
-
-                                                if (credential is GoogleIdTokenCredential) {
-                                                    val firebaseCredential = GoogleAuthProvider.getCredential(credential.idToken, null)
-                                                    com.google.firebase.auth.FirebaseAuth.getInstance()
-                                                        .signInWithCredential(firebaseCredential)
-                                                        .addOnCompleteListener { task ->
-                                                            if (task.isSuccessful) {
-                                                                viewModel.updateCurrentUser()
-                                                            }
-                                                        }
-                                                }
-                                            } catch (e: Exception) {
-                                                e.printStackTrace()
-                                            }
-                                        }
-                                    },
-                                    modifier = Modifier.fillMaxWidth().height(56.dp),
-                                    shape = RoundedCornerShape(16.dp)
-                                ) {
-                                    Icon(Icons.AutoMirrored.Filled.Login, contentDescription = null)
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text("Sign in with Google")
-                                }
-
-                                Spacer(modifier = Modifier.height(16.dp))
-
-                                OutlinedButton(
-                                    onClick = { useEmail = true },
-                                    modifier = Modifier.fillMaxWidth().height(56.dp),
-                                    shape = RoundedCornerShape(16.dp)
-                                ) {
-                                    Icon(Icons.Default.Email, contentDescription = null)
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text("Continue with Email")
-                                }
-                            } else {
-                                Column(
-                                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    OutlinedTextField(
-                                        value = email,
-                                        onValueChange = { email = it; errorMessage = null },
-                                        label = { Text("Email") },
-                                        modifier = Modifier.fillMaxWidth(),
-                                        shape = RoundedCornerShape(12.dp),
-                                        singleLine = true,
-                                        leadingIcon = { Icon(Icons.Default.Email, contentDescription = null) }
-                                    )
-
-                                    OutlinedTextField(
-                                        value = password,
-                                        onValueChange = { password = it; errorMessage = null },
-                                        label = { Text("Password") },
-                                        modifier = Modifier.fillMaxWidth(),
-                                        shape = RoundedCornerShape(12.dp),
-                                        singleLine = true,
-                                        visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
-                                        leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null) }
-                                    )
-
-                                    if (errorMessage != null) {
-                                        Text(
-                                            text = errorMessage!!,
-                                            color = MaterialTheme.colorScheme.error,
-                                            style = MaterialTheme.typography.bodySmall,
-                                            modifier = Modifier.padding(start = 4.dp)
-                                        )
-                                    }
-
-                                    Button(
-                                        onClick = {
-                                            isLoading = true
-                                            val callback: (Boolean, String?) -> Unit = { success, error ->
-                                                isLoading = false
-                                                if (!success) {
-                                                    errorMessage = error
-                                                }
-                                            }
-                                            if (isSignUp) {
-                                                viewModel.signUpWithEmail(email, password, callback)
-                                            } else {
-                                                viewModel.signInWithEmail(email, password, callback)
-                                            }
-                                        },
-                                        modifier = Modifier.fillMaxWidth().height(56.dp),
-                                        shape = RoundedCornerShape(16.dp),
-                                        enabled = email.isNotBlank() && password.isNotBlank() && !isLoading
-                                    ) {
-                                        if (isLoading) {
-                                            CircularProgressIndicator(
-                                                modifier = Modifier.size(24.dp),
-                                                color = MaterialTheme.colorScheme.onPrimary,
-                                                strokeWidth = 2.dp
-                                            )
-                                        } else {
-                                            Text(if (isSignUp) "Create Account" else "Sign In")
-                                        }
-                                    }
-
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        TextButton(onClick = { useEmail = false }) {
-                                            Text("Back to Google")
-                                        }
-                                        TextButton(onClick = { isSignUp = !isSignUp }) {
-                                            Text(if (isSignUp) "Already have an account?" else "Create account")
-                                        }
-                                    }
-                                }
-                            }
-
-                            Spacer(modifier = Modifier.weight(1f))
-                            
-                            Spacer(modifier = Modifier.height(32.dp))
                         }
                     } else {
                         Column(
@@ -956,16 +783,16 @@ fun FaqItem(faq: FaqItem) {
 
 @Composable
 fun AccountTile(
-    user: FirebaseUser?,
     currentUser: FirebaseUser?,
     onAccountClick: () -> Unit
 ) {
-    val displayUser = currentUser ?: user
+    val isAnonymous = currentUser?.isAnonymous ?: true
+    val isSignedIn = currentUser != null && !isAnonymous
     
     Surface(
         onClick = onAccountClick,
         shape = RoundedCornerShape(28.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        color = MaterialTheme.colorScheme.surfaceContainer,
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
@@ -980,9 +807,9 @@ fun AccountTile(
                 shape = RoundedCornerShape(32.dp),
                 color = MaterialTheme.colorScheme.primaryContainer
             ) {
-                if (displayUser?.photoUrl != null) {
+                if (isSignedIn && currentUser?.photoUrl != null) {
                     AsyncImage(
-                        model = displayUser.photoUrl,
+                        model = currentUser.photoUrl,
                         contentDescription = "Profile Picture",
                         modifier = Modifier.fillMaxSize()
                     )
@@ -1002,14 +829,14 @@ fun AccountTile(
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = displayUser?.displayName ?: "Sign in to Mind Access",
+                    text = if (isSignedIn) (currentUser?.displayName ?: "User") else "MindAccess Account",
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
                 Text(
-                    text = displayUser?.email ?: "Google Account, Cloud, & Sync",
+                    text = if (isSignedIn) (currentUser?.email ?: "") else "Sign in",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
@@ -1043,7 +870,8 @@ fun SettingsGroup(
         }
         Surface(
             shape = RoundedCornerShape(28.dp),
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            color = MaterialTheme.colorScheme.surfaceContainer
         ) {
             Column(content = content)
         }
