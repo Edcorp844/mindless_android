@@ -208,15 +208,25 @@ fun ErrorMessage(message: String) {
     Surface(
         color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.1f),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.2f)),
-        shape = RoundedCornerShape(16.dp)
+        shape = RoundedCornerShape(16.dp),
+        modifier = Modifier.fillMaxWidth()
     ) {
         Row(
             modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.Top
         ) {
-            Icon(Icons.Default.Info, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(20.dp))
+            Icon(
+                Icons.Default.Info, 
+                contentDescription = null, 
+                tint = MaterialTheme.colorScheme.error, 
+                modifier = Modifier.size(20.dp).padding(top = 2.dp)
+            )
             Spacer(modifier = Modifier.width(12.dp))
-            Text(message, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+            Text(
+                text = message, 
+                style = MaterialTheme.typography.bodySmall.copy(lineHeight = 18.sp), 
+                color = MaterialTheme.colorScheme.error
+            )
         }
     }
 }

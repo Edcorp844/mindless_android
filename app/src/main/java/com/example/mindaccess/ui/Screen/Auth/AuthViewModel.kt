@@ -2,6 +2,7 @@ package com.example.mindaccess.ui.Screen.Auth
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.mindaccess.Domain.Repository.UserRepository
 import com.google.firebase.auth.AuthCredential
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
@@ -11,10 +12,13 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 
 @HiltViewModel
-class AuthViewModel @Inject constructor() : ViewModel() {
+class AuthViewModel @Inject constructor(
+    private val userRepository: UserRepository
+) : ViewModel() {
 
     private val firebaseAuth = FirebaseAuth.getInstance()
 
@@ -31,6 +35,10 @@ class AuthViewModel @Inject constructor() : ViewModel() {
         _error.value = null
     }
 
+    fun setError(message: String) {
+        _error.value = message
+    }
+
     fun signIn(email: String, password: String, onSuccess: () -> Unit) {
         viewModelScope.launch {
             _isLoading.value = true
@@ -38,11 +46,21 @@ class AuthViewModel @Inject constructor() : ViewModel() {
             try {
                 firebaseAuth.signInWithEmailAndPassword(email, password)
                     .addOnCompleteListener { task ->
-                        _isLoading.value = false
                         if (task.isSuccessful) {
-                            _userState.value = firebaseAuth.currentUser
-                            onSuccess()
+                            val user = firebaseAuth.currentUser
+                            if (user != null) {
+                                viewModelScope.launch {
+                                    userRepository.upsertUserProfile(user)
+                                    _userState.value = user
+                                    _isLoading.value = false
+                                    onSuccess()
+                                }
+                            } else {
+                                _isLoading.value = false
+                                onSuccess() // Should not happen
+                            }
                         } else {
+                            _isLoading.value = false
                             _error.value = task.exception?.message ?: "Authentication failed"
                         }
                     }
@@ -68,11 +86,21 @@ class AuthViewModel @Inject constructor() : ViewModel() {
 
                             user?.updateProfile(profileUpdates)
                                 ?.addOnCompleteListener { updateTask ->
-                                    _isLoading.value = false
                                     if (updateTask.isSuccessful) {
-                                        _userState.value = firebaseAuth.currentUser
-                                        onSuccess()
+                                        val updatedUser = firebaseAuth.currentUser
+                                        if (updatedUser != null) {
+                                            viewModelScope.launch {
+                                                userRepository.upsertUserProfile(updatedUser)
+                                                _userState.value = updatedUser
+                                                _isLoading.value = false
+                                                onSuccess()
+                                            }
+                                        } else {
+                                            _isLoading.value = false
+                                            onSuccess()
+                                        }
                                     } else {
+                                        _isLoading.value = false
                                         _error.value = updateTask.exception?.message ?: "Profile update failed"
                                     }
                                 }
@@ -116,11 +144,21 @@ class AuthViewModel @Inject constructor() : ViewModel() {
             try {
                 firebaseAuth.signInWithCredential(credential)
                     .addOnCompleteListener { task ->
-                        _isLoading.value = false
                         if (task.isSuccessful) {
-                            _userState.value = firebaseAuth.currentUser
-                            onSuccess()
+                            val user = firebaseAuth.currentUser
+                            if (user != null) {
+                                viewModelScope.launch {
+                                    userRepository.upsertUserProfile(user)
+                                    _userState.value = user
+                                    _isLoading.value = false
+                                    onSuccess()
+                                }
+                            } else {
+                                _isLoading.value = false
+                                onSuccess() // Should not happen
+                            }
                         } else {
+                            _isLoading.value = false
                             _error.value = task.exception?.message ?: "Authentication failed"
                         }
                     }
@@ -139,11 +177,21 @@ class AuthViewModel @Inject constructor() : ViewModel() {
             
             firebaseAuth.startActivityForSignInWithProvider(activity, provider.build())
                 .addOnCompleteListener { task ->
-                    _isLoading.value = false
                     if (task.isSuccessful) {
-                        _userState.value = firebaseAuth.currentUser
-                        onSuccess()
+                        val user = firebaseAuth.currentUser
+                        if (user != null) {
+                            viewModelScope.launch {
+                                userRepository.upsertUserProfile(user)
+                                _userState.value = user
+                                _isLoading.value = false
+                                onSuccess()
+                            }
+                        } else {
+                            _isLoading.value = false
+                            onSuccess()
+                        }
                     } else {
+                        _isLoading.value = false
                         _error.value = task.exception?.message ?: "Sign-in failed"
                     }
                 }
@@ -157,11 +205,21 @@ class AuthViewModel @Inject constructor() : ViewModel() {
             try {
                 firebaseAuth.signInAnonymously()
                     .addOnCompleteListener { task ->
-                        _isLoading.value = false
                         if (task.isSuccessful) {
-                            _userState.value = firebaseAuth.currentUser
-                            onSuccess()
+                            val user = firebaseAuth.currentUser
+                            if (user != null) {
+                                viewModelScope.launch {
+                                    userRepository.upsertUserProfile(user)
+                                    _userState.value = user
+                                    _isLoading.value = false
+                                    onSuccess()
+                                }
+                            } else {
+                                _isLoading.value = false
+                                onSuccess()
+                            }
                         } else {
+                            _isLoading.value = false
                             _error.value = task.exception?.message ?: "Guest sign-in failed"
                         }
                     }

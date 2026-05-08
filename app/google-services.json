@@ -14,6 +14,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "45623960153-dmmo5qbib040rt14027ou1qcgd9cq4bq.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.mindaccess",
+            "certificate_hash": "184086e875c9497ac1bf8570d55eb55a740127ab"
+          }
+        },
+        {
           "client_id": "45623960153-baa4e4ejtu8uhnh0kmcgrtlcl6kb499m.apps.googleusercontent.com",
           "client_type": 3
         }

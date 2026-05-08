@@ -62,6 +62,7 @@ play-services-auth = { group = "com.google.android.gms", name = "play-services-a
 # Firebase
 firebase-bom = { group = "com.google.firebase", name = "firebase-bom", version.ref = "firebaseBom" }
 firebase-auth = { group = "com.google.firebase", name = "firebase-auth" }
+firebase-firestore = { group = "com.google.firebase", name = "firebase-firestore-ktx" }
 
 # Credentials
 androidx-credentials = { group = "androidx.credentials", name = "credentials", version.ref = "credentials" }

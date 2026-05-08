@@ -95,7 +95,7 @@ fun LoginScreen(
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
             ) {
                 Column(
-                    modifier = Modifier.padding(32.dp)
+                    modifier = Modifier.padding(32.dp).animateContentSize()
                 ) {
                     Text(
                         text = "Welcome back",
@@ -113,8 +113,10 @@ fun LoginScreen(
                     // Error Banner
                     AnimatedVisibility(visible = error != null) {
                         error?.let {
-                            ErrorMessage(it)
-                            Spacer(modifier = Modifier.height(24.dp))
+                            Column {
+                                ErrorMessage(it)
+                                Spacer(modifier = Modifier.height(40.dp))
+                            }
                         }
                     }
 
@@ -129,18 +131,27 @@ fun LoginScreen(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        SocialButton(
+                         SocialButton(
                             modifier = Modifier.weight(1f),
                             text = "Google",
                             icon = painterResource(id = R.drawable.ic_google)
                         ) {
                             coroutineScope.launch {
                                 try {
+                                    val serverClientId = context.getString(R.string.default_web_client_id)
+                                    android.util.Log.d("LoginScreen", "Using Client ID: $serverClientId")
+                                    
+                                    if (serverClientId.isEmpty()) {
+                                        viewModel.setError("Internal Error: Web Client ID not found in resources.")
+                                        return@launch
+                                    }
+
                                     val credentialManager = CredentialManager.create(context)
                                     val googleIdOption = GetGoogleIdOption.Builder()
                                         .setFilterByAuthorizedAccounts(false)
-                                        .setServerClientId(context.getString(R.string.default_web_client_id))
-                                        .setAutoSelectEnabled(true)
+                                        .setServerClientId(serverClientId)
+                                        .setAutoSelectEnabled(false)
+                                        .setNonce("random_nonce_for_testing_" + System.currentTimeMillis())
                                         .build()
 
                                     val request = GetCredentialRequest.Builder()
@@ -150,13 +161,28 @@ fun LoginScreen(
                                     val result = credentialManager.getCredential(context, request)
                                     val credential = result.credential
 
+                                    android.util.Log.d("LoginScreen", "Credential received: ${credential.type}")
+
                                     if (credential is GoogleIdTokenCredential) {
                                         val firebaseCredential =
                                             GoogleAuthProvider.getCredential(credential.idToken, null)
                                         viewModel.signInWithCredential(firebaseCredential, onLoginSuccess)
                                     }
                                 } catch (e: Exception) {
-                                    // Handle exception
+                                    android.util.Log.e("LoginScreen", "Google Sign-In Error Type: ${e.javaClass.simpleName}")
+                                    android.util.Log.e("LoginScreen", "Google Sign-In Error Message: ${e.message}")
+                                    
+                                    val message = e.message ?: ""
+                                    val friendlyMessage = when {
+                                        message.contains("No credentials available", ignoreCase = true) -> 
+                                            "No Google accounts found or App not authorized.\n\n" +
+                                            "Verify:\n" +
+                                            "1. Phone has a Google Account.\n" +
+                                            "2. SHA-1 matches Firebase Console.\n" +
+                                            "3. Google Provider is 'Enabled' in Firebase."
+                                        else -> "Error: ${e.javaClass.simpleName} - ${e.message}"
+                                    }
+                                    viewModel.setError(friendlyMessage)
                                 }
                             }
                         }

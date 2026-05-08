@@ -2,9 +2,12 @@ package com.example.mindaccess.ui.Screen.Home
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.mindaccess.Domain.Model.AppNotification
 import com.example.mindaccess.Domain.Model.CenterCategory
 import com.example.mindaccess.Domain.Model.CenterModel
 import com.example.mindaccess.Domain.Repository.CenterRepository
+import com.example.mindaccess.Domain.Repository.UserRepository
+import com.google.firebase.auth.FirebaseAuth
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -18,8 +21,14 @@ import javax.inject.Inject
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
-    private val repository: CenterRepository
+    private val repository: CenterRepository,
+    private val userRepository: UserRepository
 ) : ViewModel() {
+
+    private val firebaseAuth = FirebaseAuth.getInstance()
+
+    private val _notifications = MutableStateFlow<List<AppNotification>>(emptyList())
+    val notifications: StateFlow<List<AppNotification>> = _notifications.asStateFlow()
 
     private val _centers = MutableStateFlow<List<CenterModel>>(emptyList())
     
@@ -43,6 +52,30 @@ class HomeViewModel @Inject constructor(
 
     init {
         fetchCenters()
+        observeNotifications()
+    }
+
+    private fun observeNotifications() {
+        val uid = firebaseAuth.currentUser?.uid ?: return
+        viewModelScope.launch {
+            userRepository.subscribeToNotifications(uid).collect {
+                _notifications.value = it
+            }
+        }
+    }
+
+    fun markAsRead(notification: AppNotification) {
+        val uid = firebaseAuth.currentUser?.uid ?: return
+        viewModelScope.launch {
+            userRepository.markNotificationRead(uid, notification)
+        }
+    }
+
+    fun markAllAsRead() {
+        val uid = firebaseAuth.currentUser?.uid ?: return
+        viewModelScope.launch {
+            userRepository.markAllNotificationsRead(uid)
+        }
     }
 
     private fun fetchCenters() {

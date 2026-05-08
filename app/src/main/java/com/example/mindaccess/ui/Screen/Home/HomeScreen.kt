@@ -91,12 +91,14 @@ fun HomeScreen(
     val selectedCategory by viewModel.selectedCategory.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
+    val notifications by viewModel.notifications.collectAsState()
 
     val settingsViewModel: SettingsViewModel = hiltViewModel()
     val locationEnabled by settingsViewModel.locationEnabled.collectAsState()
 
     var selectedCenter by remember { mutableStateOf<CenterModel?>(null) }
     var isNavigating by remember { mutableStateOf(false) }
+    var showNotifications by remember { mutableStateOf(false) }
 
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -311,6 +313,15 @@ fun HomeScreen(
         }
     }
 
+    if (showNotifications) {
+        NotificationDialog(
+            notifications = notifications,
+            onDismiss = { showNotifications = false },
+            onMarkAsRead = { viewModel.markAsRead(it) },
+            onMarkAllAsRead = { viewModel.markAllAsRead() }
+        )
+    }
+
     Scaffold(
         snackbarHost = { 
             SnackbarHost(hostState = snackbarHostState) 
@@ -414,7 +425,9 @@ fun HomeScreen(
                                     this.textHaloWidth = 1.0
                                 },
                                 onClick = {
-                                    selectedCenter = center
+                                    if (!isNavigating) {
+                                        selectedCenter = center
+                                    }
                                     true
                                 }
                             )
@@ -423,103 +436,108 @@ fun HomeScreen(
                 }
 
                 // Category Filter Split Button
-                Box(
+                this@Row.AnimatedVisibility(
+                    visible = !isNavigating,
+                    enter = fadeIn() + slideInVertically(),
+                    exit = fadeOut() + slideOutVertically(),
                     modifier = Modifier
                         .align(Alignment.TopCenter)
                         .statusBarsPadding()
                         .padding(top = 16.dp)
                 ) {
-                    var expanded by remember { mutableStateOf(false) }
-                    
-                    val currentLabel = selectedCategory?.label ?: "All Categories"
-                    val currentIcon = selectedCategory?.let { getCategoryIcon(it.icon?.displayName ?: "", outlined = true) } ?: Icons.Outlined.Category
-                    val currentColor = selectedCategory?.let { parseCategoryColor(it.color) } ?: MaterialTheme.colorScheme.primary
+                    Box {
+                        var expanded by remember { mutableStateOf(false) }
+                        
+                        val currentLabel = selectedCategory?.label ?: "All Categories"
+                        val currentIcon = selectedCategory?.let { getCategoryIcon(it.icon?.displayName ?: "", outlined = true) } ?: Icons.Outlined.Category
+                        val currentColor = selectedCategory?.let { parseCategoryColor(it.color) } ?: MaterialTheme.colorScheme.primary
 
-                    Surface(
-                        shape = RoundedCornerShape(24.dp),
-                        color = MaterialTheme.colorScheme.surface,
-                        tonalElevation = 3.dp,
-                        shadowElevation = 2.dp,
-                        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.height(48.dp)
+                        Surface(
+                            shape = RoundedCornerShape(24.dp),
+                            color = MaterialTheme.colorScheme.surface,
+                            tonalElevation = 3.dp,
+                            shadowElevation = 2.dp,
+                            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
                         ) {
-                            // Leading Button part
                             Row(
-                                modifier = Modifier
-                                    .clickable { expanded = !expanded }
-                                    .padding(horizontal = 16.dp)
-                                    .fillMaxHeight(),
-                                verticalAlignment = Alignment.CenterVertically
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.height(48.dp)
                             ) {
-                                Icon(
-                                    imageVector = currentIcon,
-                                    contentDescription = null,
-                                    tint = currentColor,
-                                    modifier = Modifier.size(20.dp)
+                                // Leading Button part
+                                Row(
+                                    modifier = Modifier
+                                        .clickable { expanded = !expanded }
+                                        .padding(horizontal = 16.dp)
+                                        .fillMaxHeight(),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = currentIcon,
+                                        contentDescription = null,
+                                        tint = currentColor,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                    Spacer(Modifier.width(8.dp))
+                                    Text(
+                                        text = currentLabel,
+                                        style = MaterialTheme.typography.labelLarge
+                                    )
+                                }
+                                
+                                // Divider
+                                VerticalDivider(
+                                    modifier = Modifier.padding(vertical = 12.dp),
+                                    thickness = 1.dp,
+                                    color = MaterialTheme.colorScheme.outlineVariant
                                 )
-                                Spacer(Modifier.width(8.dp))
-                                Text(
-                                    text = currentLabel,
-                                    style = MaterialTheme.typography.labelLarge
-                                )
-                            }
-                            
-                            // Divider
-                            VerticalDivider(
-                                modifier = Modifier.padding(vertical = 12.dp),
-                                thickness = 1.dp,
-                                color = MaterialTheme.colorScheme.outlineVariant
-                            )
-                            
-                            // Trailing Button part (Arrow)
-                            Box(
-                                modifier = Modifier
-                                    .clickable { expanded = !expanded }
-                                    .padding(horizontal = 8.dp)
-                                    .fillMaxHeight(),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = if (expanded) Icons.Outlined.KeyboardArrowUp else Icons.Outlined.KeyboardArrowDown,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(20.dp)
-                                )
+                                
+                                // Trailing Button part (Arrow)
+                                Box(
+                                    modifier = Modifier
+                                        .clickable { expanded = !expanded }
+                                        .padding(horizontal = 8.dp)
+                                        .fillMaxHeight(),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = if (expanded) Icons.Outlined.KeyboardArrowUp else Icons.Outlined.KeyboardArrowDown,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
                             }
                         }
-                    }
 
-                    DropdownMenu(
-                        expanded = expanded,
-                        onDismissRequest = { expanded = false }
-                    ) {
-                        DropdownMenuItem(
-                            text = { Text("All Categories") },
-                            onClick = {
-                                viewModel.selectCategory(null)
-                                expanded = false
-                            },
-                            leadingIcon = {
-                                Icon(Icons.Outlined.Category, contentDescription = null)
-                            }
-                        )
-                        categories.forEach { category ->
+                        DropdownMenu(
+                            expanded = expanded,
+                            onDismissRequest = { expanded = false }
+                        ) {
                             DropdownMenuItem(
-                                text = { Text(category.label) },
+                                text = { Text("All Categories") },
                                 onClick = {
-                                    viewModel.selectCategory(category)
+                                    viewModel.selectCategory(null)
                                     expanded = false
                                 },
                                 leadingIcon = {
-                                    Icon(
-                                        imageVector = getCategoryIcon(category.icon?.displayName ?: "", outlined = true),
-                                        contentDescription = null,
-                                        tint = parseCategoryColor(category.color)
-                                    )
+                                    Icon(Icons.Outlined.Category, contentDescription = null)
                                 }
                             )
+                            categories.forEach { category ->
+                                DropdownMenuItem(
+                                    text = { Text(category.label) },
+                                    onClick = {
+                                        viewModel.selectCategory(category)
+                                        expanded = false
+                                    },
+                                    leadingIcon = {
+                                        Icon(
+                                            imageVector = getCategoryIcon(category.icon?.displayName ?: "", outlined = true),
+                                            contentDescription = null,
+                                            tint = parseCategoryColor(category.color)
+                                        )
+                                    }
+                                )
+                            }
                         }
                     }
                 }
@@ -531,45 +549,46 @@ fun HomeScreen(
                     )
                 }
 
-                if (isNavigating) {
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.TopCenter)
-                            .statusBarsPadding()
-                            .padding(top = 16.dp, start = 16.dp, end = 16.dp)
+                this@Row.AnimatedVisibility(
+                    visible = isNavigating,
+                    enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
+                    exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .navigationBarsPadding()
+                        .padding(bottom = 16.dp, start = 16.dp, end = 16.dp)
+                ) {
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
+                        tonalElevation = 4.dp,
+                        modifier = Modifier.fillMaxWidth()
                     ) {
-                        Surface(
-                            shape = RoundedCornerShape(16.dp),
-                            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
-                            tonalElevation = 4.dp,
-                            modifier = Modifier.fillMaxWidth()
+                        Row(
+                            modifier = Modifier.padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Row(
-                                modifier = Modifier.padding(16.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Navigating to ${selectedCenter?.name}",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = "Follow the highlighted route on the map",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.secondary
+                                )
+                            }
+                            Button(
+                                onClick = { isNavigating = false },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.errorContainer,
+                                    contentColor = MaterialTheme.colorScheme.onErrorContainer
+                                )
                             ) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = "Navigating to ${selectedCenter?.name}",
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                    Text(
-                                        text = "Follow the highlighted route on the map",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.secondary
-                                    )
-                                }
-                                Button(
-                                    onClick = { isNavigating = false },
-                                    colors = ButtonDefaults.buttonColors(
-                                        containerColor = MaterialTheme.colorScheme.errorContainer,
-                                        contentColor = MaterialTheme.colorScheme.onErrorContainer
-                                    )
-                                ) {
-                                    Text("Stop")
-                                }
+                                Text("Stop")
                             }
                         }
                     }
@@ -583,6 +602,26 @@ fun HomeScreen(
                         .padding(top = 16.dp, end = 16.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
+                    val unreadCount = notifications.count { !it.read }
+                    BadgedBox(
+                        badge = {
+                            if (unreadCount > 0) {
+                                Badge { Text(unreadCount.toString()) }
+                            }
+                        }
+                    ) {
+                        FloatingActionButton(
+                            onClick = { showNotifications = true },
+                            containerColor = MaterialTheme.colorScheme.surface,
+                            contentColor = MaterialTheme.colorScheme.primary,
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.size(48.dp),
+                            elevation = FloatingActionButtonDefaults.elevation(4.dp)
+                        ) {
+                            Icon(Icons.Default.Notifications, contentDescription = "Notifications")
+                        }
+                    }
+
                     Surface(
                         shape = RoundedCornerShape(12.dp),
                         tonalElevation = 3.dp,
@@ -690,7 +729,7 @@ fun HomeScreen(
             }
 
             this@Row.AnimatedVisibility(
-                visible = selectedCenter != null && isExpanded,
+                visible = selectedCenter != null && isExpanded && !isNavigating,
                 enter = slideInHorizontally(initialOffsetX = { it }),
                 exit = slideOutHorizontally(targetOffsetX = { it })
             ) {
