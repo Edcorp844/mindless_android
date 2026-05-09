@@ -302,14 +302,6 @@ fun LoginScreen(
                             }
                         }
                     }
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    GuestButton(
-                        onClick = { viewModel.signInAnonymously(onLoginSuccess) },
-                        modifier = Modifier.fillMaxWidth(),
-                        enabled = !isLoading
-                    )
                 }
             }
 

@@ -43,6 +43,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import dev.jeziellago.compose.markdowntext.MarkdownText
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -491,10 +492,20 @@ fun SettingDetail(
                 }
                 "Terms & Conditions" -> {
                     LegalContent(state = termsState) { data ->
-                        Column(modifier = Modifier.verticalScroll(rememberScrollState()).padding(16.dp)) {
-                            Text("Version ${data.version} | Last Updated: ${data.lastUpdated}", style = MaterialTheme.typography.labelMedium)
+                        Column(
+                            modifier = Modifier
+                                .verticalScroll(rememberScrollState())
+                                .padding(16.dp)
+                        ) {
+                            Text(
+                                "Version ${data.version} | Last Updated: ${data.lastUpdated}",
+                                style = MaterialTheme.typography.labelMedium
+                            )
                             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-                            Text(data.content)
+                            MarkdownText(
+                                markdown = data.content,
+                                modifier = Modifier.fillMaxWidth()
+                            )
                         }
                     }
                 }

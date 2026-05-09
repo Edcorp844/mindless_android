@@ -13,6 +13,7 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        maven { url = uri("https://jitpack.io") }
         
         // Load local.properties to read Mapbox token
         val localProperties = java.util.Properties()
