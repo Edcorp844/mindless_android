@@ -5,6 +5,7 @@ import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
@@ -135,6 +136,16 @@ fun HomeScreen(
     }
 
     val snackbarHostState = remember { SnackbarHostState() }
+
+    // Calculate dynamic bottom padding for map controls
+    val controlBottomPadding by animateDpAsState(
+        targetValue = when {
+            isNavigating -> 136.dp // Above navigation banner with extra space
+            selectedCenter != null && !isExpanded -> 300.dp // Above floating card with extra space
+            else -> 16.dp // Default bottom position
+        },
+        label = "MapControlPadding"
+    )
 
     // Function to request routes
     val requestRoute = remember(mapboxNavigation, fusedLocationClient, snackbarHostState, scope) {
@@ -574,7 +585,7 @@ fun HomeScreen(
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
                         .navigationBarsPadding()
-                        .padding(bottom = 16.dp, start = 16.dp, end = 16.dp)
+                        .padding(bottom = 24.dp, start = 16.dp, end = 16.dp)
                 ) {
                     Surface(
                         shape = RoundedCornerShape(16.dp),
@@ -612,12 +623,11 @@ fun HomeScreen(
                     }
                 }
 
-                // Map Controls (Zoom and Location) - Positioned at top-right
+                // Map Controls (Zoom and Location) - Positioned at bottom-right for accessibility
                 Column(
                     modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .statusBarsPadding()
-                        .padding(top = 16.dp, end = 16.dp),
+                        .align(Alignment.BottomEnd)
+                        .padding(bottom = controlBottomPadding, end = 16.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Surface(

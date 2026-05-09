@@ -5,6 +5,8 @@ import android.net.Uri
 import android.os.Build
 import android.provider.Settings
 import android.text.format.DateFormat
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.*
 import androidx.compose.animation.core.Spring
@@ -939,6 +941,15 @@ fun ProfileDetail(
 ) {
     var displayName by remember(userProfile) { mutableStateOf(userProfile?.displayName ?: "") }
     var photoUrl by remember(userProfile) { mutableStateOf(userProfile?.photoURL ?: "") }
+    val context = LocalContext.current
+
+    val launcher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let {
+            photoUrl = it.toString()
+        }
+    }
 
     Box(
         modifier = Modifier
@@ -988,7 +999,7 @@ fun ProfileDetail(
                         }
                         if (isEditing) {
                             SmallFloatingActionButton(
-                                onClick = { /* TODO: Image Picker */ },
+                                onClick = { launcher.launch("image/*") },
                                 shape = CircleShape,
                                 containerColor = MaterialTheme.colorScheme.primary,
                                 contentColor = MaterialTheme.colorScheme.onPrimary,
