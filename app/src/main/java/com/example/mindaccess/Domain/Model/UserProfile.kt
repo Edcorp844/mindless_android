@@ -12,3 +12,5 @@ data class UserProfile(
     val updatedAt: Timestamp? = null,
     val role: String = "user"
 )
+
+

@@ -2,12 +2,15 @@ package com.example.mindaccess.ui.Screen.Settings
 
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
 import android.provider.Settings
+import android.text.format.DateFormat
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.*
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -24,17 +27,21 @@ import androidx.compose.material.icons.automirrored.filled.Login
 import androidx.compose.material.icons.automirrored.outlined.HelpOutline
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
+import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -46,8 +53,14 @@ import com.example.mindaccess.ui.Screen.Auth.RegisterScreen
 import com.google.firebase.auth.FirebaseUser
 import androidx.credentials.CredentialManager
 import androidx.credentials.GetCredentialRequest
+import com.example.mindaccess.ui.Screen.Auth.AuthViewModel
+import com.example.mindaccess.ui.Screen.Auth.BackgroundGlows
+import com.example.mindaccess.ui.Screen.Home.NotificationDialog
+import com.example.mindaccess.ui.theme.ContrastAwareMindAcessTheme
+import com.example.mindaccess.ui.theme.backgroundDark
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
+import com.google.firebase.Timestamp
 import com.google.firebase.auth.GoogleAuthProvider
 import kotlinx.coroutines.launch
 
@@ -170,7 +183,7 @@ fun SettingsListContent(
         context.packageManager.getPackageInfo(context.packageName, 0)
     }
     val versionName = packageInfo.versionName
-    val versionCode = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+    val versionCode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
         packageInfo.longVersionCode
     } else {
         @Suppress("DEPRECATION")
@@ -385,6 +398,7 @@ fun SettingDetail(
         topBar = {
             TopAppBar(
                 title = { Text(if (title == "Account") "" else title) },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0, 0, 0, 0)),
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
@@ -396,7 +410,7 @@ fun SettingDetail(
                         if (isPasswordProvider) {
                             IconButton(onClick = { isEditingProfile = !isEditingProfile }) {
                                 Icon(
-                                    if (isEditingProfile) Icons.Default.Close else Icons.Default.Edit,
+                                    if (isEditingProfile) Icons.Outlined.Close else Icons.Outlined.Edit,
                                     contentDescription = "Edit Profile"
                                 )
                             }
@@ -412,38 +426,53 @@ fun SettingDetail(
             .fillMaxSize()) {
             when (title) {
                 "Account" -> {
-                    val isAnonymous = currentUser?.isAnonymous ?: true
-                    if (currentUser == null || isAnonymous) {
-                        var isRegistering by remember { mutableStateOf(false) }
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(MaterialTheme.colorScheme.background)
+                    ) {
+                        BackgroundGlows()
 
-                        if (isRegistering) {
-                            RegisterScreen(
-                                onRegisterSuccess = { viewModel.updateCurrentUser() },
-                                onNavigateToLogin = { isRegistering = false }
-                            )
+                        val isAnonymous = currentUser?.isAnonymous ?: true
+                        if (currentUser == null || isAnonymous) {
+                            var isRegistering by remember { mutableStateOf(false) }
+
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .imePadding()
+                                    .verticalScroll(rememberScrollState())
+                            ) {
+                                if (isRegistering) {
+                                    RegisterScreen(
+                                        onRegisterSuccess = { viewModel.updateCurrentUser() },
+                                        onNavigateToLogin = { isRegistering = false }
+                                    )
+                                } else {
+                                    LoginScreen(
+                                        onLoginSuccess = { viewModel.updateCurrentUser() },
+                                        onNavigateToRegister = { isRegistering = true }
+                                    )
+                                }
+                            }
                         } else {
-                            LoginScreen(
-                                onLoginSuccess = { viewModel.updateCurrentUser() },
-                                onNavigateToRegister = { isRegistering = true }
+                            ProfileDetail(
+                                userProfile = userProfile,
+                                isEditing = isEditingProfile,
+                                onEditChange = { isEditingProfile = it },
+                                onSignOut = {
+                                    viewModel.signOut()
+                                    onBack()
+                                },
+                                onUpdateProfile = { name, photo ->
+                                    viewModel.updateProfile(name, photo) { }
+                                }
                             )
                         }
-                    } else {
-                        ProfileDetail(
-                            userProfile = userProfile,
-                            isEditing = isEditingProfile,
-                            onEditChange = { isEditingProfile = it },
-                            onSignOut = {
-                                viewModel.signOut()
-                                onBack()
-                            },
-                            onUpdateProfile = { name, photo ->
-                                viewModel.updateProfile(name, photo) { }
-                            }
-                        )
                     }
                 }
                 "Notifications" -> {
-                    com.example.mindaccess.ui.Screen.Home.NotificationDialog(
+                    NotificationDialog(
                         notifications = notifications,
                         onDismiss = onBack,
                         onMarkAsRead = { viewModel.markAsRead(it) },
@@ -911,156 +940,242 @@ fun ProfileDetail(
     var displayName by remember(userProfile) { mutableStateOf(userProfile?.displayName ?: "") }
     var photoUrl by remember(userProfile) { mutableStateOf(userProfile?.photoURL ?: "") }
 
-    Column(
+    Box(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+            .background(Color(0,0,0,0))
     ) {
-        LazyColumn(
+        Column(
             modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+                .fillMaxSize()
+                .imePadding()
+                .padding(horizontal = 16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            item {
-                Spacer(modifier = Modifier.height(24.dp))
-                // Profile Image Section
-                Box(contentAlignment = Alignment.BottomEnd) {
-                    Surface(
-                        modifier = Modifier.size(100.dp),
-                        shape = MaterialTheme.shapes.extraLarge,
-                        color = MaterialTheme.colorScheme.primaryContainer,
-                        border = BorderStroke(2.dp, MaterialTheme.colorScheme.primary)
-                    ) {
-                        if (photoUrl.isNotEmpty()) {
-                            AsyncImage(
-                                model = photoUrl,
-                                contentDescription = "Profile Picture",
-                                modifier = Modifier.fillMaxSize()
-                            )
-                        } else {
-                            Box(contentAlignment = Alignment.Center) {
+            LazyColumn(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                item {
+                    Spacer(modifier = Modifier.height(24.dp))
+                    // Profile Image Section
+                    Box(contentAlignment = Alignment.BottomEnd) {
+                        Surface(
+                            modifier = Modifier.size(100.dp),
+                            shape = MaterialTheme.shapes.extraLarge,
+                            color = MaterialTheme.colorScheme.primaryContainer,
+                            border = BorderStroke(2.dp, MaterialTheme.colorScheme.primary)
+                        ) {
+                            if (photoUrl.isNotEmpty()) {
+                                AsyncImage(
+                                    model = photoUrl,
+                                    contentDescription = "Profile Picture",
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            } else {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        imageVector = Icons.Default.Person,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(50.dp),
+                                        tint = MaterialTheme.colorScheme.onPrimaryContainer
+                                    )
+                                }
+                            }
+                        }
+                        if (isEditing) {
+                            SmallFloatingActionButton(
+                                onClick = { /* TODO: Image Picker */ },
+                                shape = CircleShape,
+                                containerColor = MaterialTheme.colorScheme.primary,
+                                contentColor = MaterialTheme.colorScheme.onPrimary,
+                                modifier = Modifier.size(32.dp)
+                            ) {
                                 Icon(
-                                    imageVector = Icons.Default.Person,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(50.dp),
-                                    tint = MaterialTheme.colorScheme.onPrimaryContainer
+                                    Icons.Default.Edit,
+                                    contentDescription = "Edit photo",
+                                    modifier = Modifier.size(14.dp)
                                 )
                             }
                         }
                     }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
                     if (isEditing) {
-                        SmallFloatingActionButton(
-                            onClick = { /* TODO: Image Picker */ },
-                            shape = CircleShape,
-                            containerColor = MaterialTheme.colorScheme.primary,
-                            contentColor = MaterialTheme.colorScheme.onPrimary,
-                            modifier = Modifier.size(32.dp)
+                        OutlinedTextField(
+                            value = displayName,
+                            onValueChange = { displayName = it },
+                            label = { Text("Display Name") },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                            shape = RoundedCornerShape(16.dp)
+                        )
+                        Spacer(modifier = Modifier.height(24.dp))
+                        Button(
+                            onClick = {
+                                onUpdateProfile(displayName, photoUrl.takeIf { it.isNotEmpty() })
+                                onEditChange(false)
+                            },
+                            modifier = Modifier.fillMaxWidth().height(48.dp),
+                            shape = RoundedCornerShape(16.dp)
                         ) {
-                            Icon(Icons.Default.Edit, contentDescription = "Edit photo", modifier = Modifier.size(14.dp))
+                            Text("Save Changes")
                         }
+                    } else {
+                        Text(
+                            text = userProfile?.displayName ?: "No Name",
+                            style = MaterialTheme.typography.headlineMedium,
+                            fontWeight = FontWeight.ExtraBold
+                        )
+                        Text(
+                            text = userProfile?.role ?: "",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
 
-                if (isEditing) {
-                    OutlinedTextField(
-                        value = displayName,
-                        onValueChange = { displayName = it },
-                        label = { Text("Display Name") },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                        shape = RoundedCornerShape(16.dp)
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-                    OutlinedTextField(
-                        value = photoUrl,
-                        onValueChange = { photoUrl = it },
-                        label = { Text("Photo URL") },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                        shape = RoundedCornerShape(16.dp)
-                    )
-                    Spacer(modifier = Modifier.height(24.dp))
-                    Button(
-                        onClick = {
-                            onUpdateProfile(displayName, photoUrl.takeIf { it.isNotEmpty() })
-                            onEditChange(false)
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(16.dp)
-                    ) {
-                        Text("Save Changes")
-                    }
-                } else {
-                    Text(
-                        text = userProfile?.displayName ?: "No Name",
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.ExtraBold
-                    )
-                    Text(
-                        text = userProfile?.email ?: "",
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
 
-            if (!isEditing) {
-                item {
-                    SettingsGroup(title = "Account Information") {
-                        ListItem(
-                            headlineContent = { Text("Email") },
-                            trailingContent = { Text(userProfile?.email ?: "") },
-                            colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainer)
-                        )
-                        Spacer(modifier = Modifier.height(1.dp))
-                        ListItem(
-                            headlineContent = { Text("Provider") },
-                            trailingContent = { Text(userProfile?.provider ?: "Email") },
-                            colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainer)
-                        )
-                        Spacer(modifier = Modifier.height(1.dp))
-                        userProfile?.createdAt?.let {
+                if (!isEditing) {
+                    item {
+                        Spacer(modifier = Modifier.height(20.dp))
+                        SettingsGroup(title = "") {
                             ListItem(
-                                headlineContent = { Text("Member Since") },
-                                trailingContent = {
-                                    val date = it.toDate()
-                                    Text(android.text.format.DateFormat.getMediumDateFormat(LocalContext.current).format(date))
-                                },
+                                headlineContent = { Text("Email") },
+                                supportingContent = { Text(userProfile?.email ?: "") },
                                 colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainer)
                             )
                         }
+
+                        Spacer(modifier = Modifier.height(20.dp))
+
+                        SettingsGroup(title = "") {
+                            ListItem(
+                                headlineContent = { Text("Provider") },
+                                supportingContent  = { Text(userProfile?.provider ?: "Email") },
+                                colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainer)
+                            )
+                            Spacer(modifier = Modifier.height(1.dp))
+                            userProfile?.createdAt?.let {
+                                ListItem(
+                                    headlineContent = { Text("Member Since") },
+                                    supportingContent  = {
+                                        val date = it.toDate()
+                                        Text(
+                                            DateFormat.getMediumDateFormat(LocalContext.current)
+                                                .format(date)
+                                        )
+                                    },
+                                    colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainer)
+                                )
+                            }
+                        }
                     }
                 }
             }
-        }
 
-        // Logout at the very bottom
-        if (!isEditing) {
-            Spacer(modifier = Modifier.weight(1f))
-            Button(
-                onClick = onSignOut,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 24.dp),
-                shape = RoundedCornerShape(16.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.errorContainer,
-                    contentColor = MaterialTheme.colorScheme.onErrorContainer
-                )
-            ) {
-                Icon(Icons.AutoMirrored.Filled.Login, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Sign Out")
+            // Logout at the very bottom
+            if (!isEditing) {
+                Button(
+                    onClick = onSignOut,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(80.dp)
+                        .padding(bottom = 24.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.errorContainer,
+                        contentColor = MaterialTheme.colorScheme.onErrorContainer
+                    )
+                ) {
+                    Icon(
+                        Icons.AutoMirrored.Filled.Login,
+                        contentDescription = null,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text("Sign Out")
+                }
             }
         }
     }
 }
 
+class DammyVieModel{
+    init{}
+    public fun signOut(){}
+    public fun updateProfile(name: String, photo: String?){
+
+    }
+    public fun onBack(){}
+    public fun updateCurrentUser(){}
+}
+
+class AuthViewModel{
+    init {
+
+    }
+}
+
+/*
+@Preview(showSystemUi = true )
+@Composable
+fun ProfileDetailPreview() {
+    val profile = UserProfile(
+        displayName = "John Doe",
+        email = "john@doe.com",
+        createdAt = Timestamp.now(),
+        updatedAt = Timestamp.now(),
+        role = "user"
+    )
+    val viewModel = DammyVieModel()
+    val isEditing = false
+    var isRegistering by remember { mutableStateOf(false) }
+
+    ContrastAwareMindAcessTheme(darkTheme = true, dynamicColor = false) {
+        Scaffold(
+            topBar = {
+                TopAppBar(
+                    title = { Text("") },
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0, 0, 0, 0)),
+                    navigationIcon = {
+                        IconButton(onClick = {}) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        }
+                    },
+                )
+            },
+            contentWindowInsets = WindowInsets(0, 0, 0, 0)
+        ) { paddingValues ->
+            Box(
+                modifier = Modifier
+                    .padding(paddingValues)
+                    .fillMaxSize()
+            ) {
+                BackgroundGlows()
+                if (isRegistering) {
+                    RegisterScreen(
+                        onRegisterSuccess = { viewModel.updateCurrentUser() },
+                        onNavigateToLogin = { isRegistering = false }
+                    )
+                } else {
+                    LoginScreen(
+                        onLoginSuccess = { viewModel.updateCurrentUser() },
+                        onNavigateToRegister = { isRegistering = true },
+                        viewModel = AuthViewModel()
+                    )
+                }
+            }
+        }
+
+    }
+}
+*/
 @Composable
 fun SettingsGroup(
     title: String,

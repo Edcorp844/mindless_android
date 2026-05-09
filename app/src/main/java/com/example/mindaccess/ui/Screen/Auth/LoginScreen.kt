@@ -5,6 +5,7 @@ import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Email
@@ -21,10 +22,12 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
@@ -47,12 +50,20 @@ fun LoginScreen(
     onLoginSuccess: () -> Unit,
     onNavigateToRegister: () -> Unit,
     viewModel: AuthViewModel = hiltViewModel()
+    //viewModel: AuthViewModel = AuthViewModel()
 ) {
     val user by viewModel.userState.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val error by viewModel.error.collectAsState()
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
+    val focusManager = LocalFocusManager.current
+
+    /*val user = null
+    val isLoading = false
+    val error = null
+    val coroutineScope = rememberCoroutineScope()
+    val context = LocalContext.current*/
 
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
@@ -67,18 +78,14 @@ fun LoginScreen(
 
     Box(
         modifier = Modifier
-            //.systemBarsPadding()
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
+            .fillMaxWidth()
+            .wrapContentHeight()
+            .background(Color(0,0,0,0))
     ) {
-        // Background Glows
-        BackgroundGlows()
-
         Column(
             modifier = Modifier
-                .fillMaxSize()
-                .systemBarsPadding()
-                .verticalScroll(rememberScrollState()),
+                .fillMaxWidth()
+                .wrapContentHeight(),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Top
         ) {
@@ -87,7 +94,7 @@ fun LoginScreen(
             Spacer(modifier = Modifier.height(16.dp))
 
             Surface(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.padding(horizontal = 16.dp),
                 shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
                 color = MaterialTheme.colorScheme.surface.copy(alpha = 0.7f),
                 tonalElevation = 8.dp,
@@ -139,7 +146,7 @@ fun LoginScreen(
                         ) {
                             coroutineScope.launch {
                                 try {
-                                    val serverClientId = context.getString(R.string.default_web_client_id)
+                                   val serverClientId = context.getString(R.string.default_web_client_id)
                                     android.util.Log.d("LoginScreen", "Using Client ID: $serverClientId")
                                     
                                     if (serverClientId.isEmpty()) {
@@ -150,7 +157,7 @@ fun LoginScreen(
                                     val credentialManager = CredentialManager.create(context)
                                     val googleIdOption = GetGoogleIdOption.Builder()
                                         .setFilterByAuthorizedAccounts(false)
-                                        .setServerClientId(serverClientId)
+                                       .setServerClientId(serverClientId)
                                         .setAutoSelectEnabled(false)
                                         .setNonce("random_nonce_for_testing_" + System.currentTimeMillis())
                                         .build()
@@ -223,7 +230,8 @@ fun LoginScreen(
                         onValueChange = { email = it },
                         label = "EMAIL",
                         placeholder = "you@example.com",
-                        icon = Icons.Default.Email
+                        icon = Icons.Default.Email,
+                        imeAction = ImeAction.Next
                     )
 
                     Spacer(modifier = Modifier.height(16.dp))
@@ -244,7 +252,7 @@ fun LoginScreen(
                                 text = "Forgot password?",
                                 modifier = Modifier.clickable {
                                     if (email.isNotBlank()) {
-                                        viewModel.resetPassword(email) { resetSent = true }
+                                       viewModel.resetPassword(email) { resetSent = true }
                                     }
                                 },
                                 style = MaterialTheme.typography.labelSmall,
@@ -261,7 +269,16 @@ fun LoginScreen(
                             icon = Icons.Default.Lock,
                             isPassword = true,
                             showPassword = showPassword,
-                            onTogglePassword = { showPassword = !showPassword }
+                            onTogglePassword = { showPassword = !showPassword },
+                            imeAction = ImeAction.Done,
+                            keyboardActions = KeyboardActions(
+                                onDone = {
+                                    if (email.isNotBlank() && password.isNotBlank()) {
+                                        viewModel.signIn(email, password, onLoginSuccess)
+                                    }
+                                    focusManager.clearFocus()
+                                }
+                            )
                         )
                     }
 

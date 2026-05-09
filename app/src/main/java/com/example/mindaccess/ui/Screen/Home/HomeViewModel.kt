@@ -7,8 +7,11 @@ import com.example.mindaccess.Domain.Model.CenterCategory
 import com.example.mindaccess.Domain.Model.CenterModel
 import com.example.mindaccess.Domain.Repository.CenterRepository
 import com.example.mindaccess.Domain.Repository.UserRepository
+import com.example.mindaccess.utils.ErrorMapper
+import com.example.mindaccess.utils.NetworkObserver
 import com.google.firebase.auth.FirebaseAuth
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -22,7 +25,8 @@ import javax.inject.Inject
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     private val repository: CenterRepository,
-    private val userRepository: UserRepository
+    private val userRepository: UserRepository,
+    private val networkObserver: NetworkObserver
 ) : ViewModel() {
 
     private val firebaseAuth = FirebaseAuth.getInstance()
@@ -51,8 +55,21 @@ class HomeViewModel @Inject constructor(
     val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
 
     init {
-        fetchCenters()
+        observeNetwork()
+        refresh()
         observeNotifications()
+    }
+
+    private fun observeNetwork() {
+        viewModelScope.launch {
+            networkObserver.observe.collect { status ->
+                if (status == NetworkObserver.Status.Available && _centers.value.isEmpty()) {
+                    _errorMessage.value = null // Clear error to allow loading state to show
+                    delay(1000) // Give network a second to stabilize
+                    refresh()
+                }
+            }
+        }
     }
 
     private fun observeNotifications() {
@@ -78,15 +95,20 @@ class HomeViewModel @Inject constructor(
         }
     }
 
+    fun refresh() {
+        fetchCenters()
+    }
+
     private fun fetchCenters() {
         viewModelScope.launch {
             _isLoading.value = true
             repository.getCenters()
                 .onSuccess {
                     _centers.value = it
+                    _errorMessage.value = null
                 }
-                .onFailure {
-                    _errorMessage.value = it.message ?: "An unknown error occurred"
+                .onFailure { exception ->
+                    _errorMessage.value = ErrorMapper.getUserFriendlyMessage(exception)
                 }
             _isLoading.value = false
         }

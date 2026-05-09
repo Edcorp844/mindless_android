@@ -5,6 +5,7 @@ import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Email
@@ -21,10 +22,12 @@ import androidx.compose.ui.draw.blur
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
@@ -45,6 +48,7 @@ fun RegisterScreen(
     val user by viewModel.userState.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val error by viewModel.error.collectAsState()
+    val focusManager = LocalFocusManager.current
 
     var name by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
@@ -60,16 +64,14 @@ fun RegisterScreen(
 
     Box(
         modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
+            .fillMaxWidth()
+            .wrapContentHeight()
+            .background(Color(0,0,0,0))
     ) {
-        BackgroundGlows()
-
         Column(
             modifier = Modifier
-                .fillMaxSize()
-                .systemBarsPadding()
-                .verticalScroll(rememberScrollState()),
+                .fillMaxWidth()
+                .wrapContentHeight(),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Top
         ) {
@@ -78,7 +80,7 @@ fun RegisterScreen(
             Spacer(modifier = Modifier.height(16.dp))
 
             Surface(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.padding(horizontal = 16.dp),
                 shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
                 color = MaterialTheme.colorScheme.surface.copy(alpha = 0.7f),
                 tonalElevation = 8.dp,
@@ -112,7 +114,8 @@ fun RegisterScreen(
                         onValueChange = { name = it },
                         label = "FULL NAME",
                         placeholder = "John Doe",
-                        icon = Icons.Default.Person
+                        icon = Icons.Default.Person,
+                        imeAction = ImeAction.Next
                     )
 
                     Spacer(modifier = Modifier.height(16.dp))
@@ -122,7 +125,8 @@ fun RegisterScreen(
                         onValueChange = { email = it },
                         label = "EMAIL",
                         placeholder = "you@example.com",
-                        icon = Icons.Default.Email
+                        icon = Icons.Default.Email,
+                        imeAction = ImeAction.Next
                     )
 
                     Spacer(modifier = Modifier.height(16.dp))
@@ -135,7 +139,8 @@ fun RegisterScreen(
                         icon = Icons.Default.Lock,
                         isPassword = true,
                         showPassword = showPassword,
-                        onTogglePassword = { showPassword = !showPassword }
+                        onTogglePassword = { showPassword = !showPassword },
+                        imeAction = ImeAction.Next
                     )
 
                     Spacer(modifier = Modifier.height(16.dp))
@@ -148,7 +153,16 @@ fun RegisterScreen(
                         icon = Icons.Default.Lock,
                         isPassword = true,
                         showPassword = showPassword,
-                        onTogglePassword = { showPassword = !showPassword }
+                        onTogglePassword = { showPassword = !showPassword },
+                        imeAction = ImeAction.Done,
+                        keyboardActions = KeyboardActions(
+                            onDone = {
+                                if (password == confirmPassword && email.isNotBlank() && password.isNotBlank()) {
+                                    viewModel.signUp(email, password, name, onRegisterSuccess)
+                                }
+                                focusManager.clearFocus()
+                            }
+                        )
                     )
 
                     Spacer(modifier = Modifier.height(24.dp))

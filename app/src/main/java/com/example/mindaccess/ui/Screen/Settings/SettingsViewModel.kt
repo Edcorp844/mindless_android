@@ -7,6 +7,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.mindaccess.Domain.Model.*
 import com.example.mindaccess.Domain.Repository.LegalRepository
+import com.example.mindaccess.utils.ErrorMapper
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -142,22 +143,22 @@ class SettingsViewModel @Inject constructor(
             _termsState.value = LegalState.Loading
             legalRepository.getTerms()
                 .onSuccess { _termsState.value = LegalState.Success(it) }
-                .onFailure { _termsState.value = LegalState.Error(it.message ?: "Unknown error") }
+                .onFailure { _termsState.value = LegalState.Error(ErrorMapper.getUserFriendlyMessage(it)) }
 
             _licenseState.value = LegalState.Loading
             legalRepository.getAndroidLicenses()
                 .onSuccess { _licenseState.value = LegalState.Success(it) }
-                .onFailure { _licenseState.value = LegalState.Error(it.message ?: "Unknown error") }
+                .onFailure { _licenseState.value = LegalState.Error(ErrorMapper.getUserFriendlyMessage(it)) }
 
             _helpState.value = LegalState.Loading
             legalRepository.getHelp()
                 .onSuccess { _helpState.value = LegalState.Success(it) }
-                .onFailure { _helpState.value = LegalState.Error(it.message ?: "Unknown error") }
+                .onFailure { _helpState.value = LegalState.Error(ErrorMapper.getUserFriendlyMessage(it)) }
 
             _faqState.value = LegalState.Loading
             legalRepository.getFaq()
                 .onSuccess { _faqState.value = LegalState.Success(it) }
-                .onFailure { _faqState.value = LegalState.Error(it.message ?: "Unknown error") }
+                .onFailure { _faqState.value = LegalState.Error(ErrorMapper.getUserFriendlyMessage(it)) }
         }
     }
 

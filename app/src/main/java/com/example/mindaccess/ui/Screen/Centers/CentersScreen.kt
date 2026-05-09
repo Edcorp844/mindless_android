@@ -12,6 +12,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.CloudOff
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -21,6 +23,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -62,6 +65,7 @@ fun CentersScreen(
                     centers = centers,
                     filteredCenters = filteredCenters,
                     isLoading = isLoading,
+                    errorMessage = errorMessage,
                     categories = categories,
                     selectedCategory = selectedCategory,
                     searchQuery = searchQuery,
@@ -72,6 +76,7 @@ fun CentersScreen(
                         selectedCenterName = it
                     },
                     onSearchClick = onSearchClick,
+                    onRefresh = { viewModel.fetchCenters() },
                     selectedCenterName = selectedCenterName
                 )
             }
@@ -97,6 +102,7 @@ fun CentersScreen(
             centers = centers,
             filteredCenters = filteredCenters,
             isLoading = isLoading,
+            errorMessage = errorMessage,
             categories = categories,
             selectedCategory = selectedCategory,
             searchQuery = searchQuery,
@@ -104,7 +110,8 @@ fun CentersScreen(
             onCategorySelected = { viewModel.onCategorySelected(it) },
             onSearchQueryChanged = { viewModel.onSearchQueryChanged(it) },
             onCenterClick = onCenterClick,
-            onSearchClick = onSearchClick
+            onSearchClick = onSearchClick,
+            onRefresh = { viewModel.fetchCenters() }
         )
     }
 }
@@ -115,6 +122,7 @@ fun CentersScreenContent(
     centers: List<CenterModel>,
     filteredCenters: List<CenterModel>,
     isLoading: Boolean,
+    errorMessage: String?,
     categories: List<String>,
     selectedCategory: String,
     searchQuery: String,
@@ -123,6 +131,7 @@ fun CentersScreenContent(
     onSearchQueryChanged: (String) -> Unit,
     onCenterClick: (String) -> Unit,
     onSearchClick: () -> Unit,
+    onRefresh: () -> Unit,
     selectedCenterName: String? = null
 ) {
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
@@ -238,6 +247,35 @@ fun CentersScreenContent(
                 LoadingIndicator(
                     modifier = Modifier.align(Alignment.Center)
                 )
+            } else if (centers.isEmpty() && errorMessage != null) {
+                Column(
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .padding(32.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Icon(
+                        Icons.Default.CloudOff,
+                        contentDescription = null,
+                        modifier = Modifier.size(64.dp),
+                        tint = MaterialTheme.colorScheme.secondary
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = "Unable to load centers. Please check your internet connection.",
+                        style = MaterialTheme.typography.bodyLarge,
+                        textAlign = TextAlign.Center
+                    )
+                    Spacer(modifier = Modifier.height(24.dp))
+                    Button(
+                        onClick = onRefresh,
+                        shape = MaterialTheme.shapes.medium
+                    ) {
+                        Icon(Icons.Default.Refresh, contentDescription = null)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Try Again")
+                    }
+                }
             } else {
                 // Adaptive grid for better utilization of screen space on tablets
                 LazyVerticalGrid(

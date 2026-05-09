@@ -3,6 +3,7 @@ package com.example.mindaccess.ui.Screen.Auth
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.mindaccess.Domain.Repository.UserRepository
+import com.example.mindaccess.utils.ErrorMapper
 import com.google.firebase.auth.AuthCredential
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
@@ -41,17 +42,25 @@ class AuthViewModel @Inject constructor(
 
     private fun handleAuthError(exception: Exception?) {
         _isLoading.value = false
-        val message = exception?.message ?: ""
+        if (exception == null) {
+            _error.value = "An unexpected error occurred."
+            return
+        }
+        val message = exception.message ?: ""
         _error.value = when {
             exception is com.google.firebase.FirebaseNetworkException -> 
-                "No internet connection. Please check your network and try again."
+                "No internet connection. Please check your connection."
             message.contains("network", ignoreCase = true) -> 
-                "Connection failed. Please check your internet."
-            message.contains("user-not-found", ignoreCase = true) || message.contains("wrong-password", ignoreCase = true) ->
+                "No internet connection. Please check your connection."
+            message.contains("user-not-found", ignoreCase = true) || 
+            message.contains("wrong-password", ignoreCase = true) ||
+            message.contains("invalid-credential", ignoreCase = true) ->
                 "Invalid email or password."
             message.contains("email-already-in-use", ignoreCase = true) ->
                 "This email is already registered."
-            else -> exception?.localizedMessage ?: "An unexpected error occurred."
+            message.contains("too-many-requests", ignoreCase = true) ->
+                "Too many attempts. Please try again later."
+            else -> ErrorMapper.getUserFriendlyMessage(exception)
         }
     }
 

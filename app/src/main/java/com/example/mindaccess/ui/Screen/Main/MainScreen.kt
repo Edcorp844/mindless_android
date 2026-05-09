@@ -20,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavDestination.Companion.hierarchy
@@ -85,6 +86,8 @@ fun MainScreen(
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
 
+    val isKeyboardVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
+
     Row(modifier = Modifier.fillMaxSize()) {
         // Tablet Side Bar (Navigation Rail)
         if (useNavigationRail) {
@@ -136,7 +139,7 @@ fun MainScreen(
         Scaffold(
             bottomBar = {
                 // Mobile Bottom Bar
-                if (!useNavigationRail) {
+                if (!useNavigationRail && !isKeyboardVisible) {
                     NavigationBar(
                         containerColor = Color.Transparent,
                         windowInsets = WindowInsets.navigationBars
@@ -185,7 +188,8 @@ fun MainScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .windowInsetsPadding(WindowInsets.navigationBars.only(WindowInsetsSides.Horizontal))
-                    .padding(bottom = innerPadding.calculateBottomPadding())
+                    .padding(innerPadding)
+                    .consumeWindowInsets(innerPadding)
             ) {
                 NavHost(
                     navController = navController,

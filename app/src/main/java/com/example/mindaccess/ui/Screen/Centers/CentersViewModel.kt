@@ -4,14 +4,18 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.mindaccess.Domain.Model.CenterModel
 import com.example.mindaccess.Domain.Repository.CenterRepository
+import com.example.mindaccess.utils.ErrorMapper
+import com.example.mindaccess.utils.NetworkObserver
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
 class CentersViewModel @Inject constructor(
-    private val repository: CenterRepository
+    private val repository: CenterRepository,
+    private val networkObserver: NetworkObserver
 ) : ViewModel() {
 
     private val _centers = MutableStateFlow<List<CenterModel>>(emptyList())
@@ -48,7 +52,20 @@ class CentersViewModel @Inject constructor(
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     init {
+        observeNetwork()
         fetchCenters()
+    }
+
+    private fun observeNetwork() {
+        viewModelScope.launch {
+            networkObserver.observe.collect { status ->
+                if (status == NetworkObserver.Status.Available && _centers.value.isEmpty()) {
+                    _errorMessage.value = null // Clear error state to trigger UI update
+                    delay(1000) // Give network a second to stabilize
+                    fetchCenters()
+                }
+            }
+        }
     }
 
     fun onCategorySelected(category: String) {
@@ -65,7 +82,7 @@ class CentersViewModel @Inject constructor(
             _errorMessage.value = null
             repository.getCenters()
                 .onSuccess { _centers.value = it }
-                .onFailure { _errorMessage.value = it.message ?: "An unknown error occurred" }
+                .onFailure { _errorMessage.value = ErrorMapper.getUserFriendlyMessage(it) }
             _isLoading.value = false
         }
     }
